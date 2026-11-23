@@ -1,0 +1,43 @@
+# main ブランチに push すると、site フォルダの中身を GitHub Pages に公開します。
+# 事前に リポジトリの Settings → Pages → Source を「GitHub Actions」にしておいてください。
+name: GitHub Pages に公開
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Actions タブから手動でも実行できる
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: ファイルを取り出す
+        uses: actions/checkout@v7
+
+      # data.js を書きかえて壊してしまったときに、公開前に気づけるようにする
+      - name: シミュレーションが動くか確認（2000人分を計算）
+        run: node tools/balance.js 2000
+
+      - name: Pages の準備
+        uses: actions/configure-pages@v6
+
+      - name: site フォルダをアップロード
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: 公開する
+        id: deployment
+        uses: actions/deploy-pages@v5
