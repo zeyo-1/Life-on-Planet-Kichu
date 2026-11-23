@@ -3,16 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>きちゅう 80億分の1</title>
-  <meta name="description" content="惑星きちゅうで、ひとつの人生を生きてみる。授業用の人生シミュレーションゲーム。">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Ccircle r='44' fill='none' stroke='%23EFA92B' stroke-width='5'/%3E%3Ccircle r='32' fill='%232E9B88'/%3E%3C/svg%3E">
+  <title>きちゅう 1億分の1</title>
+  <meta name="description" content="モンスターの惑星きちゅうで、ひとつの一生を生きてみる。授業用の人生シミュレーションゲーム。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Ccircle r='40' fill='%233CC6A5' stroke='%23231942' stroke-width='6'/%3E%3Ccircle cx='-12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='-11' cy='-5' r='3.5' fill='%23231942'/%3E%3Ccircle cx='13' cy='-5' r='3.5' fill='%23231942'/%3E%3C/svg%3E">
+  <link rel="preload" href="fonts/mochiy-pop-one-kichu.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="sky-bg" aria-hidden="true"></div>
+
   <header class="bar">
     <button type="button" class="brand" id="btn-home" aria-label="はじめの画面にもどる">
-      <svg viewBox="-50 -50 100 100" aria-hidden="true"><circle r="44" class="brand-ring"/><circle r="31" class="brand-planet"/></svg>
-      <span>きちゅう 80億分の1</span>
+      <svg viewBox="-50 -50 100 100" aria-hidden="true"><circle r="40" class="brand-planet"/><circle cx="-12" cy="-6" r="7" fill="#fff"/><circle cx="12" cy="-6" r="7" fill="#fff"/><circle cx="-11" cy="-5" r="3.5" class="brand-eye"/><circle cx="13" cy="-5" r="3.5" class="brand-eye"/></svg>
+      <span>きちゅう 1億分の1</span>
     </button>
     <div class="bar-tools">
       <label class="switch">
@@ -31,50 +34,62 @@
       <div class="title-copy">
         <h1 id="title-h" class="title-h">
           <span class="title-planet">きちゅう</span>
-          <span class="fraction" aria-label="80億分の1">
+          <span class="fraction" aria-label="1億分の1">
             <span class="fraction-num">1</span>
-            <span class="fraction-den">8,000,000,000</span>
+            <span class="fraction-den">100,000,000</span>
           </span>
         </h1>
-        <p class="lead">惑星きちゅうには、80億人が暮らしています。あなたは今日、そのうちの1人として生まれます。</p>
+        <p class="lead">モンスターの惑星きちゅうには、1億匹のモンスターが暮らしています。あなたは今日、そのうちの1匹としてタマゴからかえります。</p>
         <p class="lead">どの国の、どんな家に生まれるかは選べません。</p>
-        <button type="button" class="btn btn-primary btn-big" id="btn-born">生まれる</button>
-        <p class="small muted">1回 およそ5分。音は出ません。</p>
+        <button type="button" class="btn btn-primary btn-big" id="btn-born">タマゴからかえる</button>
+        <p class="small soft">1回 およそ5分。音は出ません。</p>
       </div>
     </section>
 
-    <!-- ===== 誕生のくじ ===== -->
+    <!-- ===== 誕生のルーレット ===== -->
     <section id="screen-birth" class="screen birth" aria-labelledby="birth-h" hidden>
       <h2 id="birth-h" class="screen-h">どこに生まれる？</h2>
-      <p class="muted">0から1までの線を、きちゅうで生まれる赤ちゃんの割合で区切りました。乱数を1つ引いて、止まった場所で決まります。</p>
+      <p class="soft birth-lead">ルーレットは、きちゅうで生まれる赤ちゃんの割合で区切られています。乱数を1つ引いて、止まった場所で決まります。</p>
 
-      <div class="lottery" id="lot-country"></div>
-      <p class="lot-result" id="res-country" aria-live="polite"></p>
-
-      <div id="family-step" hidden>
-        <h3 class="sub-h">どんな家に生まれる？</h3>
-        <p class="muted">生まれた国によって、区切り方がちがいます。</p>
-        <div class="lottery" id="lot-family"></div>
-        <p class="lot-result" id="res-family" aria-live="polite"></p>
+      <div class="wheels">
+        <div class="wheel-box" id="wheel-country-box">
+          <h3 class="wheel-h">生まれる国</h3>
+          <div class="wheel" id="wheel-country"></div>
+          <p class="lot-result" id="res-country" aria-live="polite"></p>
+        </div>
+        <div class="wheel-box" id="wheel-family-box" hidden>
+          <h3 class="wheel-h">生まれる家</h3>
+          <div class="wheel" id="wheel-family"></div>
+          <p class="lot-result" id="res-family" aria-live="polite"></p>
+        </div>
       </div>
 
-      <div class="born" id="born" hidden>
-        <p class="born-text" id="born-text"></p>
-        <p class="muted" id="born-tagline"></p>
-        <button type="button" class="btn btn-primary btn-big" id="btn-start">人生をはじめる</button>
+      <div class="born panel" id="born" hidden>
+        <div class="born-scene" id="born-scene"></div>
+        <div class="born-copy">
+          <p class="born-text" id="born-text"></p>
+          <p class="soft" id="born-tagline"></p>
+          <p class="soft small" id="born-species"></p>
+          <button type="button" class="btn btn-primary btn-big" id="btn-start">一生をはじめる</button>
+        </div>
       </div>
     </section>
 
-    <!-- ===== 人生 ===== -->
-    <section id="screen-life" class="screen life" aria-label="人生のようす" hidden>
-      <div class="life-left">
-        <div class="orbit" id="orbit-life"></div>
-        <ul class="ring-key" aria-label="年輪の色">
-          <li><i class="key key-good"></i>うれしいことがあった年</li>
-          <li><i class="key key-bad"></i>つらいことがあった年</li>
-          <li><i class="key key-choice"></i>自分で選んだ年</li>
-          <li><i class="key key-none"></i>おだやかな年</li>
-        </ul>
+    <!-- ===== 一生 ===== -->
+    <section id="screen-life" class="screen life" aria-label="一生のようす" hidden>
+      <div class="stage">
+        <div class="stage-frame" id="stage-frame">
+          <div class="stage-scene" id="stage-scene"></div>
+          <div class="hud">
+            <div class="hud-who">
+              <p class="hud-name" id="who-name"></p>
+              <p class="hud-place" id="who-place"></p>
+            </div>
+            <p class="hud-age"><span id="who-age">0</span><span class="unit">さい</span></p>
+          </div>
+          <div class="bubble" id="bubble" aria-hidden="true"></div>
+          <div class="fx" id="fx" aria-hidden="true"></div>
+        </div>
         <div class="controls">
           <button type="button" class="btn btn-small" id="btn-pause">一時停止</button>
           <div class="speed" role="group" aria-label="すすむ速さ">
@@ -85,96 +100,113 @@
         </div>
       </div>
 
-      <div class="life-right">
-        <div class="who">
-          <p class="who-name" id="who-name"></p>
-          <p class="who-age"><span id="who-age">0</span><span class="unit">さい</span></p>
-          <p class="who-place" id="who-place"></p>
-        </div>
+      <div class="side panel">
         <dl class="meters" id="meters"></dl>
-        <div class="peek-panel peek-only" id="peek-panel" aria-live="off"></div>
+        <p class="tags" id="tags"></p>
+        <div class="peek-panel peek-only" id="peek-panel"></div>
         <ol class="log" id="log" aria-live="polite"></ol>
       </div>
 
       <div class="choice-layer" id="choice" hidden>
         <div class="choice-card" role="dialog" aria-modal="true" aria-labelledby="choice-q">
+          <p class="choice-badge" id="choice-badge">分かれ道</p>
           <h2 id="choice-q" class="choice-q"></h2>
           <div class="choice-options" id="choice-options"></div>
-          <p class="small muted">選んでも、結果は確率で決まることがあります。</p>
+          <p class="small soft-dark">選んでも、結果は確率で決まることがあります。</p>
         </div>
       </div>
     </section>
 
-    <!-- ===== 一生のまとめ ===== -->
+    <!-- ===== 一生のまとめ（人生カード） ===== -->
     <section id="screen-end" class="screen end" aria-labelledby="end-h" hidden>
-      <div class="end-left">
-        <div class="orbit" id="orbit-end"></div>
-        <ul class="ring-key" aria-label="年輪の色">
-          <li><i class="key key-good"></i>うれしい</li>
-          <li><i class="key key-bad"></i>つらい</li>
-          <li><i class="key key-choice"></i>選んだ</li>
-          <li><i class="key key-none"></i>おだやか</li>
-        </ul>
-      </div>
-      <div class="end-right">
-        <h2 id="end-h" class="end-h"><span id="end-name"></span>さんの一生</h2>
-        <p class="end-age"><span id="end-age"></span><span class="unit">さい</span></p>
+      <article class="card" id="life-card">
+        <div class="card-scene" id="card-scene"></div>
+        <div class="card-body">
+          <p class="card-rarity" id="card-rarity"></p>
+          <h2 id="end-h" class="card-title"><span id="card-title"></span></h2>
+          <p class="card-desc" id="card-desc"></p>
+          <div class="card-row">
+            <div>
+              <p class="card-name" id="card-name"></p>
+              <p class="card-age"><span id="end-age"></span><span class="unit">さい</span></p>
+              <p class="card-meta" id="card-meta"></p>
+            </div>
+            <figure class="radar-box">
+              <svg class="radar" id="radar" viewBox="-80 -80 160 160" role="img"></svg>
+              <figcaption>一生でいちばん<br>高かったとき</figcaption>
+            </figure>
+          </div>
+        </div>
+      </article>
+
+      <div class="end-side">
         <p class="end-cause" id="end-cause"></p>
-        <dl class="facts" id="end-facts"></dl>
+        <h3 class="sub-h">名場面</h3>
+        <ol class="moments" id="moments"></ol>
         <p class="end-compare" id="end-compare"></p>
         <div class="actions">
-          <button type="button" class="btn btn-primary" id="btn-many">1万人の人生を計算する</button>
-          <button type="button" class="btn" id="btn-again">もう一度生まれる</button>
+          <button type="button" class="btn btn-primary" id="btn-many">1万匹の一生を計算する</button>
+          <button type="button" class="btn" id="btn-again">もう一度かえる</button>
         </div>
         <p class="seed-line small">人生番号 <b id="end-seed"></b>
           <button type="button" class="text-btn" id="btn-same">同じ番号でやり直す</button>
         </p>
         <details class="history">
-          <summary>年表を見る</summary>
+          <summary>年表をぜんぶ見る</summary>
           <ol class="log log-full" id="end-log"></ol>
         </details>
       </div>
     </section>
 
-    <!-- ===== 1万人のシミュレーション ===== -->
+    <!-- ===== 1万匹のシミュレーション ===== -->
     <section id="screen-many" class="screen many" aria-labelledby="many-h" hidden>
-      <h2 id="many-h" class="screen-h">同じ日にきちゅうで生まれた1万人</h2>
+      <h2 id="many-h" class="screen-h">同じ日にタマゴからかえった1万匹</h2>
       <div class="many-progress" id="many-progress">
-        <p class="many-count"><span id="many-n">0</span><span class="unit">人目を計算中</span></p>
+        <p class="many-count"><span id="many-n">0</span><span class="unit">匹目を計算中</span></p>
+        <div class="progress"><div class="progress-fill" id="many-bar"></div></div>
       </div>
 
       <div id="many-body" hidden>
         <p class="many-time" id="many-time"></p>
 
-        <h3 class="sub-h">生まれた国ごとに見ると</h3>
-        <div class="table-wrap">
-          <table class="data-table" id="many-table">
-            <thead>
-              <tr>
-                <th scope="col">生まれた国</th>
-                <th scope="col" class="num">人数</th>
-                <th scope="col">平均寿命</th>
-                <th scope="col" class="num">学校に<br>通えた</th>
-                <th scope="col" class="num">5さいまでに<br>亡くなった</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div class="panel many-panel">
+          <h3 class="sub-h">生まれた国ごとに見ると</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="many-table">
+              <thead>
+                <tr>
+                  <th scope="col">生まれた国</th>
+                  <th scope="col" class="num col-n">数</th>
+                  <th scope="col">平均寿命</th>
+                  <th scope="col" class="num">学校に<br>通えた</th>
+                  <th scope="col" class="num">5さいまでに<br>亡くなった</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
 
-        <h3 class="sub-h">何さいまで生きたか</h3>
-        <div class="hist" id="hist" role="img"></div>
-        <p class="small muted">横は亡くなった年れい（10さいごと）、縦は人数です。</p>
-        <p class="many-you" id="many-you"></p>
+        <div class="panel many-panel">
+          <h3 class="sub-h">何さいまで生きたか</h3>
+          <div class="hist" id="hist" role="img"></div>
+          <p class="small soft-dark">横は亡くなった年れい（10さいごと）、縦は数です。</p>
+          <p class="many-you" id="many-you"></p>
+        </div>
+
+        <div class="panel many-panel">
+          <h3 class="sub-h">称号ランキング</h3>
+          <ol class="ranking" id="ranking"></ol>
+        </div>
 
         <div class="takeaways">
-          <p>1人の人生は、乱数が決める偶然の連続でした。</p>
-          <p>でも1万人分を集めると、生まれた国による差がはっきり見えてきます。たくさん試して、全体の傾向をつかむ。これがシミュレーションです。</p>
-          <p id="lines-note">このゲームは HTML・CSS・JavaScript だけでできています。data.js の数字を変えれば、別の世界も作れます。</p>
+          <p>1匹の一生は、乱数が決める偶然の連続でした。</p>
+          <p>でも1万匹分を集めると、生まれた国による差がはっきり見えてきます。たくさん試して、全体の傾向をつかむ。これがシミュレーションです。</p>
+          <p id="lines-note">このゲームは HTML・CSS・JavaScript だけでできています。data.js や story.js を書きかえれば、別の世界も作れます。</p>
         </div>
 
         <div class="actions">
-          <button type="button" class="btn btn-primary" id="btn-again2">もう一度生まれる</button>
+          <button type="button" class="btn btn-primary" id="btn-again2">もう一度かえる</button>
           <button type="button" class="btn" id="btn-guide2">しくみを見る</button>
         </div>
       </div>
@@ -197,10 +229,11 @@
       <section>
         <h3>きちゅうのモデル</h3>
         <ol class="steps">
-          <li>生まれる国と家を、割合に合わせた「くじ」で決める</li>
+          <li>生まれる国と家を、割合に合わせたルーレットで決める</li>
           <li>1年ごとに、病気・災害・出会いなどのできごとが確率でおこる</li>
           <li>1年ごとに「この1年で亡くなる確率」を計算して、乱数と比べる</li>
-          <li>15・22・28・40さいで選択。ただし結果は確率で決まることもある</li>
+          <li>7・13・15・18・22・28・35・40・55・70さいで選択。ただし結果は確率で決まることもある</li>
+          <li>一生の終わりに、それまでのできごとから称号が決まる</li>
         </ol>
         <p>画面右上の「しくみモード」をオンにすると、毎年の確率と乱数が見えます。</p>
       </section>
@@ -216,7 +249,7 @@ if (r &lt; p) {
 } else {
   life.age += 1; // 1さい年をとって、次の年へ
 }</code></pre>
-        <p class="small muted">sim.js より（少し短くしています）</p>
+        <p class="small soft-dark">sim.js より（少し短くしています）</p>
       </section>
 
       <section>
@@ -227,7 +260,7 @@ if (r &lt; p) {
               <tr>
                 <th scope="col">国</th>
                 <th scope="col" class="num">生まれる<br>割合</th>
-                <th scope="col" class="num">小学校に<br>通える</th>
+                <th scope="col" class="num">学校に<br>通える</th>
                 <th scope="col" class="num">進学<br>できる</th>
                 <th scope="col" class="num">近くに<br>病院</th>
                 <th scope="col" class="num">0さいで<br>亡くなる</th>
@@ -236,36 +269,40 @@ if (r &lt; p) {
             <tbody></tbody>
           </table>
         </div>
-        <p class="small muted">すべて授業用に作った架空の数字です。本物の『80億分の1』は、国連や WHO などの実際の統計をもとにしています。</p>
+        <p class="small soft-dark">すべて授業用に作った架空の数字です。本物の『80億分の1』は、国連や WHO などの実際の統計をもとにしています。</p>
       </section>
 
       <section>
         <h3>乱数と人生番号</h3>
-        <p>コンピュータの乱数は、じつは計算で作られた「疑似乱数」です。同じ番号（シード）から計算を始めると、同じ乱数が同じ順に出てきます。同じ人生番号で、同じ選択をすれば、まったく同じ人生になります。</p>
+        <p>コンピュータの乱数は、じつは計算で作られた「疑似乱数」です。同じ番号（シード）から計算を始めると、同じ乱数が同じ順に出てきます。同じ人生番号で、同じ選択をすれば、まったく同じ一生になります。</p>
         <p id="guide-seed" class="small"></p>
       </section>
 
       <section>
         <h3>ファイルの役割</h3>
         <dl class="files">
-          <dt>data.js</dt><dd>国・家・できごとの確率。ここを変えると世界が変わる</dd>
+          <dt>data.js</dt><dd>国・家・種族の数字。ここを変えると世界が変わる</dd>
+          <dt>story.js</dt><dd>選択・できごと・称号のシナリオ。新しいできごとも足せる</dd>
           <dt>sim.js</dt><dd>シミュレーションの計算だけをする部分</dd>
+          <dt>scene.js</dt><dd>風景とモンスターのイラスト</dd>
           <dt>game.js</dt><dd>画面に表示したり、ボタンに反応したりする部分</dd>
           <dt>index.html・style.css</dt><dd>画面の骨組みと見た目</dd>
         </dl>
-        <p id="guide-lines" class="small muted"></p>
+        <p id="guide-lines" class="small soft-dark"></p>
       </section>
 
-      <p class="credit small muted">この教材は、人生シミュレーションゲーム『80億分の1』（Jin's Earth）に着想を得て、高校「情報」の授業用に作りました。惑星きちゅうと国々は架空のものです。</p>
+      <p class="credit small soft-dark">この教材は、人生シミュレーションゲーム『80億分の1』（Jin's Earth）に着想を得て、高校「情報」の授業用に作りました。惑星きちゅうとモンスターたち、国々は架空のものです。見出しのフォントは Mochiy Pop One（SIL Open Font License）です。</p>
     </aside>
   </div>
 
-  <footer class="foot small muted">
-    惑星きちゅうと国々、数字はすべて架空です。『80億分の1』（Jin's Earth）に着想を得た授業用教材。
+  <footer class="foot small">
+    惑星きちゅうとモンスターたち、数字はすべて架空です。『80億分の1』（Jin's Earth）に着想を得た授業用教材。
   </footer>
 
   <script src="data.js"></script>
+  <script src="story.js"></script>
   <script src="sim.js"></script>
+  <script src="scene.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
