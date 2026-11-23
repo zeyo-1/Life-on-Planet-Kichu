@@ -28,6 +28,10 @@ const KichuSim = (() => {
   const familyOf = (id) => familyMap.get(id);
   const choiceAt = new Map(STORY.choices.map((ch) => [ch.age, ch]));
   const milestoneAt = new Map(STORY.milestones.map((m) => [m.age, m]));
+  // 年れいごとに、おこりうるできごとを先に分けておく（計算を速くするため。順番は story.js のまま）
+  const eventsAt = Array.from({ length: 121 }, (_, a) => STORY.events.filter((ev) => a >= ev.ages[0] && a <= ev.ages[1]));
+  STORY.events.forEach((ev, i) => (ev._i = i)); // できごとの番号（回数を配列で数えるため）
+  const N_EVENTS = STORY.events.length;
 
   // 重みつき抽選：0〜1 の乱数 r が、どの区間に入ったかを返す
   function pickWeighted(weights, r) {
@@ -81,8 +85,8 @@ const KichuSim = (() => {
       checkup: false,
       migrated: false,
       flags: {},
-      counts: {},
-      lastAt: {},
+      evCount: new Uint8Array(N_EVENTS), // できごとがおこった回数
+      evLast: new Int16Array(N_EVENTS).fill(-1000), // 最後におこった年れい
       goodCount: 0,
       badCount: 0,
       history: [],
@@ -146,18 +150,20 @@ const KichuSim = (() => {
     const c = countryOf(L.country);
     const r = L.random();
     let start = 0;
-    for (const ev of STORY.events) {
-      if (L.age < ev.ages[0] || L.age > ev.ages[1]) continue;
-      if (ev.max && (L.counts[ev.id] || 0) >= ev.max) continue;
-      if (ev.cooldown && L.lastAt[ev.id] != null && L.age - L.lastAt[ev.id] < ev.cooldown) continue;
+    const count = L.evCount;
+    const lastAt = L.evLast;
+    for (const ev of eventsAt[Math.min(120, L.age)]) {
+      const i = ev._i;
+      if (ev.max && count[i] >= ev.max) continue;
+      if (ev.cooldown && L.age - lastAt[i] < ev.cooldown) continue;
       if (ev.when && !ev.when(L)) continue;
       const p = typeof ev.rate === "function" ? ev.rate(L, c) : ev.rate;
       if (r < start + p) {
-        L.counts[ev.id] = (L.counts[ev.id] || 0) + 1;
-        L.lastAt[ev.id] = L.age;
+        count[i] += 1;
+        lastAt[i] = L.age;
         // 文がいくつか用意されていたら、おこった回数ごとに順番に使う（同じ文がつづかないように）
         let text = typeof ev.text === "function" ? ev.text(L, c) : ev.text;
-        if (Array.isArray(text)) text = text[(L.counts[ev.id] - 1) % text.length];
+        if (Array.isArray(text)) text = text[(count[i] - 1) % text.length];
         if (ev.id === "baby") L.kids += 1;
         const t = tools(L, out);
         t[ev.kind](text, ev.effect);
@@ -229,6 +235,19 @@ const KichuSim = (() => {
 
   const newOut = (L) => ({ age: L.age, logs: [], choice: null, death: null, dead: false, stats: null });
 
+  // ---------- 選択肢をえらぶ ----------
+  // たくさんの選択肢の中から、always のものと、乱数で選んだものを合わせて SHOW 個にする
+  const SHOW = 4;
+  function pickOptions(L, all) {
+    const always = all.filter((o) => o.always);
+    const rest = all.filter((o) => !o.always);
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(L.random() * (i + 1));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+    return always.concat(rest).slice(0, SHOW);
+  }
+
   // ---------- 1年すすめる ----------
   function step(L) {
     if (!L.alive) throw new Error("この人生はもう終わっています");
@@ -239,9 +258,10 @@ const KichuSim = (() => {
     if (ms) ms.apply(L, c, tools(L, out));
     const choice = choiceAt.get(L.age);
     if (choice) {
-      const options = choice.options(L, c);
+      const all = choice.options(L, c).filter(Boolean);
+      const options = pickOptions(L, all);
       L.pending = { def: choice, options };
-      out.choice = { id: choice.id, prompt: choice.prompt(L, c), options };
+      out.choice = { id: choice.id, prompt: choice.prompt(L, c), options, total: all.length };
       out.stats = snapshot(L);
       return out;
     }

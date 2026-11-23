@@ -7,7 +7,7 @@
   <meta name="description" content="モンスターの惑星きちゅうで、ひとつの一生を生きてみる。授業用の人生シミュレーションゲーム。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Ccircle r='40' fill='%233CC6A5' stroke='%23231942' stroke-width='6'/%3E%3Ccircle cx='-12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='-11' cy='-5' r='3.5' fill='%23231942'/%3E%3Ccircle cx='13' cy='-5' r='3.5' fill='%23231942'/%3E%3C/svg%3E">
   <link rel="preload" href="fonts/mochiy-pop-one-kichu.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div class="sky-bg" aria-hidden="true"></div>
@@ -113,48 +113,82 @@
           <h2 id="choice-q" class="choice-q"></h2>
           <div class="choice-options" id="choice-options"></div>
           <p class="small soft-dark">選んでも、結果は確率で決まることがあります。</p>
+          <p class="small choice-pool peek-only" id="choice-pool"></p>
         </div>
       </div>
     </section>
 
     <!-- ===== 一生のまとめ（人生カード） ===== -->
     <section id="screen-end" class="screen end" aria-labelledby="end-h" hidden>
-      <article class="card" id="life-card">
-        <div class="card-scene" id="card-scene"></div>
-        <div class="card-body">
-          <p class="card-rarity" id="card-rarity"></p>
-          <h2 id="end-h" class="card-title"><span id="card-title"></span></h2>
-          <p class="card-desc" id="card-desc"></p>
-          <div class="card-row">
-            <div>
-              <p class="card-name" id="card-name"></p>
-              <p class="card-age"><span id="end-age"></span><span class="unit">さい</span></p>
-              <p class="card-meta" id="card-meta"></p>
-            </div>
-            <figure class="radar-box">
-              <svg class="radar" id="radar" viewBox="-80 -80 160 160" role="img"></svg>
-              <figcaption>一生でいちばん<br>高かったとき</figcaption>
-            </figure>
-          </div>
+      <div class="reveal" id="reveal" hidden>
+        <div class="reveal-rays" aria-hidden="true"></div>
+        <div class="reveal-inner" role="status" aria-live="polite">
+          <p class="reveal-lead" id="reveal-lead"></p>
+          <p class="reveal-wait" id="reveal-wait">・・・</p>
+          <p class="reveal-stars" id="reveal-stars" aria-hidden="true"></p>
+          <p class="reveal-title" id="reveal-title"></p>
+          <p class="reveal-rarity" id="reveal-rarity"></p>
+          <button type="button" class="btn btn-primary btn-big" id="btn-reveal">人生カードを見る</button>
         </div>
-      </article>
+        <div class="fx" id="reveal-fx" aria-hidden="true"></div>
+      </div>
 
-      <div class="end-side">
-        <p class="end-cause" id="end-cause"></p>
-        <h3 class="sub-h">名場面</h3>
-        <ol class="moments" id="moments"></ol>
-        <p class="end-compare" id="end-compare"></p>
-        <div class="actions">
-          <button type="button" class="btn btn-primary" id="btn-many">1万匹の一生を計算する</button>
-          <button type="button" class="btn" id="btn-again">もう一度かえる</button>
+      <div class="end-grid">
+        <div class="card-wrap">
+          <article class="card" id="life-card">
+            <div class="card-scene" id="card-scene"></div>
+            <div class="card-body">
+              <p class="card-rarity" id="card-rarity"></p>
+              <h2 id="end-h" class="card-title"><span id="card-title"></span></h2>
+              <p class="card-desc" id="card-desc"></p>
+              <div class="card-row">
+                <div>
+                  <p class="card-name" id="card-name"></p>
+                  <p class="card-age"><span id="end-age"></span><span class="unit">さい</span></p>
+                  <p class="card-meta" id="card-meta"></p>
+                </div>
+                <figure class="radar-box">
+                  <svg class="radar" id="radar" viewBox="-80 -80 160 160" role="img"></svg>
+                  <figcaption>一生でいちばん<br>高かったとき</figcaption>
+                </figure>
+              </div>
+            </div>
+          </article>
+          <p class="seed-line small">人生番号 <b id="end-seed"></b>
+            <button type="button" class="text-btn" id="btn-same">同じ番号でやり直す</button>
+          </p>
         </div>
-        <p class="seed-line small">人生番号 <b id="end-seed"></b>
-          <button type="button" class="text-btn" id="btn-same">同じ番号でやり直す</button>
-        </p>
-        <details class="history">
-          <summary>年表をぜんぶ見る</summary>
-          <ol class="log log-full" id="end-log"></ol>
-        </details>
+
+        <div class="end-main">
+          <p class="end-cause" id="end-cause"></p>
+          <div class="records" id="records"></div>
+
+          <section class="panel end-panel">
+            <h3 class="sub-h">人生グラフ</h3>
+            <svg class="lifechart" id="lifechart" viewBox="0 0 640 250" role="img"></svg>
+            <p class="chart-legend" id="chart-legend"></p>
+          </section>
+
+          <section class="panel end-panel">
+            <h3 class="sub-h">名場面</h3>
+            <ol class="timeline" id="moments"></ol>
+          </section>
+
+          <section class="panel end-panel">
+            <h3 class="sub-h">寿命くらべ</h3>
+            <div class="bars" id="compare-bars"></div>
+            <p class="end-compare" id="end-compare"></p>
+          </section>
+
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="btn-many">1万匹の一生を計算する</button>
+            <button type="button" class="btn" id="btn-again">もう一度かえる</button>
+          </div>
+          <details class="history">
+            <summary>年表をぜんぶ見る</summary>
+            <ol class="log log-full" id="end-log"></ol>
+          </details>
+        </div>
       </div>
     </section>
 
@@ -296,13 +330,14 @@ if (r &lt; p) {
   </div>
 
   <footer class="foot small">
-    惑星きちゅうとモンスターたち、数字はすべて架空です。『80億分の1』（Jin's Earth）に着想を得た授業用教材。
+    惑星きちゅうとモンスターたち、数字はすべて架空です。
   </footer>
 
-  <script src="data.js"></script>
-  <script src="story.js"></script>
-  <script src="sim.js"></script>
-  <script src="scene.js"></script>
-  <script src="game.js"></script>
+  <!-- ?v= の数字は、ファイルを更新したら増やす（ブラウザに古いファイルが残らないように） -->
+  <script src="data.js?v=5"></script>
+  <script src="story.js?v=5"></script>
+  <script src="sim.js?v=5"></script>
+  <script src="scene.js?v=5"></script>
+  <script src="game.js?v=5"></script>
 </body>
 </html>

@@ -26,8 +26,10 @@
     return e;
   }
 
+  // 「アニメーションを減らす」設定のときは、ずっと動き続ける飾り（ゆれ・きらめき）だけを止める。
+  // ルーレットや演出はゲームの中身なので、設定にかかわらず動かす。
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const wait = (ms) => new Promise((res) => setTimeout(res, reduceMotion ? Math.min(ms, 150) : ms));
+  const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
   // 1年が進む速さ [何もない年, できごとがあった年]（ミリ秒）
   const SPEEDS = { slow: [900, 2600], normal: [380, 1300], fast: [120, 600] };
@@ -124,9 +126,18 @@
   }
 
   // ルーレットを回す。最後は乱数 r の位置（0〜1 を一周とした角度）で止まる
+  // 前半 2.4秒は同じ速さで回り、後半 4.6秒かけてゆっくり止まる
   function spinWheel(ui, r, index) {
     return new Promise((resolve) => {
       const target = -(r * 360) - 360 * 8;
+      const T1 = 2400;
+      const T2 = 4600;
+      const speed = target / (T1 + T2 / 3); // 1ミリ秒あたりの角度
+      const angleAt = (ms) => {
+        if (ms <= T1) return speed * ms;
+        const s = Math.min(1, (ms - T1) / T2);
+        return speed * T1 + ((speed * T2) / 3) * (1 - Math.pow(1 - s, 3));
+      };
       const finish = () => {
         ui.disc.style.transform = `rotate(${target}deg)`;
         ui.segs.forEach((g) => {
@@ -138,14 +149,12 @@
         resolve();
       };
       ui.box.classList.remove("stopped");
-      if (reduceMotion) return finish();
-      const duration = 6000;
       const t0 = performance.now();
       let current = -1;
       const frame = (now) => {
-        const t = Math.min(1, (now - t0) / duration);
-        const eased = 1 - Math.pow(1 - t, 4);
-        const rot = target * eased;
+        const ms = now - t0;
+        const t = Math.min(1, ms / (T1 + T2));
+        const rot = t >= 1 ? target : angleAt(ms);
         ui.disc.style.transform = `rotate(${rot}deg)`;
         const i = segmentAt(ui, rot);
         if (i !== current) {
@@ -165,6 +174,7 @@
 
   async function startBirth(seed) {
     clearTimer();
+    $("#reveal").hidden = true;
     state.seed = seed;
     state.life = KichuSim.createLife(seed);
     const life = state.life;
@@ -232,6 +242,8 @@
   function enterLife() {
     const life = state.life;
     state.prevStats = null;
+    state.choicesMade = 0;
+    state.trace = [{ age: 0, health: life.health, learn: life.learn, money: life.money, happy: life.happy }];
     state.paused = false;
     updatePauseButton();
     state.scene = KichuScene.create();
@@ -284,7 +296,7 @@
       state.timer = setTimeout(() => {
         state.timer = null;
         openChoice(out.choice);
-      }, reduceMotion ? 100 : 900);
+      }, 900);
       return;
     }
     afterYear(out);
@@ -292,6 +304,12 @@
 
   function applyYear(out) {
     const L = state.life;
+    // 人生グラフ用に、毎年のメーターを記録する（同じ年は上書き）
+    const point = { age: out.age + (out.dead ? 0 : 1), ...out.stats };
+    if (out.choice) point.age = out.age;
+    const lastPoint = state.trace[state.trace.length - 1];
+    if (lastPoint && lastPoint.age === point.age) state.trace[state.trace.length - 1] = point;
+    else state.trace.push(point);
     $("#who-age").textContent = String(out.age);
     out.logs.forEach((entry) => pushLog($("#log"), entry, true));
     renderMeters(out.stats);
@@ -321,7 +339,7 @@
   function afterYear(out) {
     if (out.dead) {
       state.scene.setTime(1.06);
-      state.timer = setTimeout(showEnd, reduceMotion ? 800 : 2600);
+      state.timer = setTimeout(showEnd, 2600);
       return;
     }
     const [plain, eventful] = SPEEDS[state.speed];
@@ -341,7 +359,6 @@
   }
 
   function effectFor(entry) {
-    if (reduceMotion) return;
     const fx = $("#fx");
     if (entry.kind === "great") {
       confetti(fx, 40);
@@ -351,7 +368,7 @@
     } else if (entry.kind === "bad") {
       const disaster = entry.eventId === "disaster";
       rain(fx, disaster ? 50 : 24);
-      if (disaster) {
+      if (disaster && !reduceMotion) {
         const f = $("#stage-frame");
         f.classList.remove("shake");
         void f.offsetWidth;
@@ -448,6 +465,7 @@
     const n = CHOICE_AGES.indexOf(state.life.age) + 1;
     $("#choice-badge").textContent = `分かれ道 ${n} / ${CHOICE_AGES.length}`;
     $("#choice-q").textContent = choice.prompt;
+    $("#choice-pool").textContent = `この分かれ道の選択肢は全部で${choice.total}個。そのうち${choice.options.length}個が乱数で選ばれて表示されています。`;
     const box = $("#choice-options");
     box.replaceChildren();
     choice.options.forEach((opt) => {
@@ -463,6 +481,7 @@
 
   function pick(opt) {
     $("#choice").hidden = true;
+    state.choicesMade += 1;
     const out = KichuSim.choose(state.life, opt.id);
     out.logs.forEach((l) => {
       if (l.kind !== "death") l.isChoice = true;
@@ -491,15 +510,15 @@
   );
 
   // ============================================================
-  //  人生カード
+  //  一生のまとめ（称号発表 → 人生カード）
   // ============================================================
   function rarityOf(titleId, count, total) {
-    if (titleId === "smallStar") return { cls: "r-star", label: "星になったモンスター" };
+    if (titleId === "smallStar") return { cls: "r-star", label: "星になったモンスター", stars: "☆" };
     const share = count / total;
-    if (share <= 0.01) return { cls: "r-ultra", label: "ウルトラレア" };
-    if (share <= 0.03) return { cls: "r-rare", label: "レア" };
-    if (share <= 0.08) return { cls: "r-some", label: "ちょっとレア" };
-    return { cls: "r-common", label: "よくある称号" };
+    if (share <= 0.01) return { cls: "r-ultra", label: "ウルトラレア", stars: "★★★★" };
+    if (share <= 0.03) return { cls: "r-rare", label: "レア", stars: "★★★" };
+    if (share <= 0.08) return { cls: "r-some", label: "ちょっとレア", stars: "★★" };
+    return { cls: "r-common", label: "よくある称号", stars: "★" };
   }
 
   function drawRadar(L) {
@@ -528,7 +547,124 @@
     svg.setAttribute("aria-label", "一生でいちばん高かった値：" + axes.map((x) => `${x.label} ${Math.round(L.peak[x.k])}`).join("、"));
   }
 
-  function showEnd() {
+  // 記録のタイル
+  function drawRecords(L) {
+    const count = (k) => L.history.filter((e) => e.kind === k).length;
+    const days = L.deathAge > 0 ? `約${fmt(L.deathAge * 365)}日` : "365日未満";
+    const icon = (body, fill) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${fill}" stroke="#231942" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${body}</svg>`;
+    const tiles = [
+      { cls: "wide", icon: icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" fill="none"/>', "#c9b8ff"), v: days, k: "きちゅうで過ごした日数" },
+      { icon: icon('<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>', "#ff6f7d"), v: count("great"), k: "大成功" },
+      { icon: icon('<circle cx="12" cy="12" r="9"/><path d="M8 13.5c1.2 2 6.8 2 8 0" fill="none"/><circle cx="9" cy="10" r="1" fill="#231942"/><circle cx="15" cy="10" r="1" fill="#231942"/>', "#ffc93c"), v: count("good"), k: "うれしいこと" },
+      { icon: icon('<path d="M12 3c3 4.5 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 3-6.5 6-11z"/>', "#6c8cff"), v: count("bad"), k: "つらいこと" },
+      { icon: icon('<path d="M12 21V11M12 11L5 4M12 11l7-7M5 4v5M5 4h5M19 4v5M19 4h-5" fill="none"/>', "#3cc6a5"), v: state.choicesMade, k: "分かれ道" },
+    ];
+    $("#records").replaceChildren(
+      ...tiles.map((t, i) => h("div", { class: `rec ${t.cls || ""}`, style: `animation-delay:${0.08 * i}s` }, [h("span", { html: t.icon }), h("b", { text: String(t.v) }), h("span", { text: t.k })]))
+    );
+  }
+
+  // 人生グラフ：4つのメーターが一生でどう変わったか
+  function drawLifeChart(L) {
+    const svg = $("#lifechart");
+    // 画面の幅に合わせて描く（文字が小さくなりすぎないように）
+    const W = Math.round(Math.min(640, Math.max(300, svg.clientWidth || 640)));
+    const H = 250, left = 34, right = 12, top = 44, bottom = 210;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const maxAge = Math.max(10, L.deathAge);
+    const x = (age) => left + (age / maxAge) * (W - left - right);
+    const y = (v) => bottom - (v / 100) * (bottom - top);
+    let g = "";
+    [0, 50, 100].forEach((v) => (g += `<line class="grid" x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${left - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`));
+    const step = maxAge > 60 || W < 420 ? 20 : 10;
+    for (let a = 0; a <= maxAge; a += step) g += `<text class="tick" x="${x(a)}" y="${bottom + 18}" text-anchor="middle">${a}さい</text>`;
+    g += `<line class="axis" x1="${left}" x2="${W - right}" y1="${bottom}" y2="${bottom}"/>`;
+    // できごとの印（上の帯）
+    if (W >= 420) g += `<text class="lane" x="${left - 6}" y="22" text-anchor="end">できごと</text>`;
+    L.history.forEach((e, i) => {
+      const cx = x(Math.min(e.age + 0.5, maxAge)).toFixed(1);
+      const delay = `style="animation-delay:${(0.4 + (e.age / maxAge) * 2).toFixed(2)}s"`;
+      if (e.kind === "great") g += `<path class="mk" ${delay} d="M${cx} 8 l3 6.5 7 .8 -5.2 4.8 1.4 7 -6.2-3.5 -6.2 3.5 1.4-7 -5.2-4.8 7-.8z" fill="#ff6f7d" stroke="#231942" stroke-width="1.5"/>`;
+      else if (e.kind === "bad") g += `<circle class="mk" ${delay} cx="${cx}" cy="18" r="5" fill="#6c8cff" stroke="#231942" stroke-width="1.5"/>`;
+      else if (e.kind === "good") g += `<circle class="mk" ${delay} cx="${cx}" cy="18" r="3.5" fill="#ffc93c" stroke="#231942" stroke-width="1.2"/>`;
+      if (e.isChoice && (i === 0 || L.history[i - 1].age !== e.age || !L.history[i - 1].isChoice)) g += `<path d="M${cx} ${bottom - 6} l6 6 -6 6 -6 -6z" fill="#231942"/>`;
+    });
+    // 4本の線
+    STATS.forEach((st) => {
+      const pts = state.trace.map((p) => `${x(p.age).toFixed(1)},${y(p[st.key]).toFixed(1)}`).join(" ");
+      g += `<polyline class="line" pathLength="1" points="${pts}" stroke="${st.color}"/>`;
+    });
+    svg.innerHTML = g;
+    const last = state.trace[state.trace.length - 1];
+    svg.setAttribute("aria-label", `0さいから${L.deathAge}さいまでの、4つのメーターの変化。最後は ` + STATS.map((st) => `${st.label} ${Math.round(last[st.key])}`).join("、"));
+    $("#chart-legend").replaceChildren(
+      ...STATS.map((st) => h("span", {}, [h("i", { style: `background:${st.color}` }), st.label])),
+      h("span", {}, ["◆ 分かれ道"]),
+      h("span", {}, [h("span", { style: "color:#ff6f7d", text: "★" }), " 大成功"])
+    );
+  }
+
+  // 名場面：大成功・選べないできごと・分かれ道の結果から、最大8つ
+  function drawMoments(L) {
+    const ol = $("#moments");
+    ol.replaceChildren();
+    const pool = L.history.filter((e) => e.kind !== "death" && (e.isChoice || e.kind === "great" || e.note));
+    const first = pool.filter((e) => e.kind === "great" || e.note);
+    const rest = pool.filter((e) => !(e.kind === "great" || e.note));
+    const top = first.concat(rest).slice(0, 8).sort((a, b) => a.age - b.age);
+    if (!top.length) {
+      ol.append(h("li", {}, [h("span", { class: "m-age", html: `<b>${L.deathAge}</b><small>さい</small>` }), h("span", { class: "m-text", text: "短い一生でしたが、家族はタマゴからかえった日のことをずっと覚えています。" })]));
+      return;
+    }
+    top.forEach((e) =>
+      ol.append(
+        h("li", { class: `m-${e.kind}` }, [
+          h("span", { class: "m-age", html: `<b>${e.age}</b><small>さい</small>` }),
+          h("span", { class: "m-text" }, [e.isChoice ? h("span", { class: "m-tag", text: "選んだ" }) : null, e.text]),
+        ])
+      )
+    );
+  }
+
+  function drawCompare(L, sum) {
+    const c0 = KichuSim.countryOf(L.birthCountry);
+    const row = sum.byCountry.find((r) => r.id === L.birthCountry);
+    const rows = [
+      { label: `${L.name}（あなた）`, v: L.deathAge, color: "#ffc93c", cls: "you" },
+      { label: `${c0.name}の平均`, v: row.avgAge, color: c0.color },
+      { label: "きちゅう全体の平均", v: sum.avgAge, color: "#c9b8ff" },
+    ];
+    $("#compare-bars").replaceChildren(
+      ...rows.map((r, i) =>
+        h("div", { class: `bar-row ${r.cls || ""}` }, [
+          h("span", { text: r.label }),
+          h("div", { class: "track" }, [h("div", { class: "fill", style: `width:${Math.min(100, (r.v / 110) * 100)}%; background:${r.color}; animation-delay:${0.15 * i}s` })]),
+          h("b", { text: `${Number.isInteger(r.v) ? r.v : r.v.toFixed(1)}さい` }),
+        ])
+      )
+    );
+    let text = "平均は、同じ日にかえった1万匹を計算した結果です。";
+    if (L.deathAge < 5) text += `${c0.name}では、100匹のうち約${Math.max(1, Math.round(row.under5 * 100))}匹が5さいまでに亡くなります。`;
+    else if (L.deathAge >= row.avgAge + 10) text += `${c0.name}の平均より、ずっと長い一生でした。`;
+    else if (L.deathAge <= row.avgAge - 10) text += `${c0.name}の平均より、ずっと短い一生でした。`;
+    $("#end-compare").textContent = text;
+  }
+
+  function burst(fx, rar) {
+    fx.replaceChildren();
+    if (rar.cls === "r-star") {
+      for (let i = 0; i < 24; i++) fx.append(h("span", { class: "sparkle", style: `left:${Math.random() * 100}%; top:${Math.random() * 100}%; animation-delay:${(Math.random() * 1.6).toFixed(2)}s` }));
+      return;
+    }
+    const n = { "r-ultra": 120, "r-rare": 70, "r-some": 40, "r-common": 24 }[rar.cls];
+    confetti(fx, n);
+    if (rar.cls === "r-ultra" || rar.cls === "r-rare") {
+      setTimeout(() => confetti(fx, Math.round(n / 2)), 700);
+      for (let i = 0; i < 18; i++) fx.append(h("span", { class: "sparkle", style: `left:${Math.random() * 100}%; top:${Math.random() * 80}%; animation-delay:${(Math.random() * 1.6).toFixed(2)}s` }));
+    }
+  }
+
+  async function showEnd() {
     state.timer = null;
     const L = state.life;
     const c0 = KichuSim.countryOf(L.birthCountry);
@@ -536,15 +672,16 @@
     const sp = KICHU.species.find((s) => s.id === L.species);
     const title = KichuSim.titleById(L.title);
 
+    // 人生カード（称号発表のうしろで用意しておく）
     const cardScene = KichuScene.create();
     cardScene.setCountry(L.country);
     cardScene.setTime(Math.min(1.1, Math.max(0.05, L.deathAge / 100)));
     cardScene.setCast(L, L.deathAge);
     $("#card-scene").replaceChildren(cardScene.el);
-
+    const wrap = $(".card-wrap");
+    wrap.className = "card-wrap";
     const card = $("#life-card");
     card.className = "card";
-    $("#card-rarity").textContent = "レア度を計算中…";
     $("#card-title").textContent = title.name;
     $("#card-desc").textContent = title.desc;
     $("#card-name").textContent = `${L.name}（${sp.name}）`;
@@ -557,42 +694,63 @@
 
     const last = L.history[L.history.length - 1];
     $("#end-cause").textContent = `${L.name}は、${last.text}。`;
-
-    // 名場面：大成功と「選べないできごと」を優先し、選択の結果とあわせて最大6つ
-    const moments = L.history.filter((e) => e.kind !== "death" && (e.isChoice || e.kind === "great" || e.note));
-    const first = moments.filter((e) => e.kind === "great" || e.note);
-    const rest = moments.filter((e) => !(e.kind === "great" || e.note));
-    const top = first.concat(rest).slice(0, 6).sort((a, b) => a.age - b.age);
-    const ol = $("#moments");
-    ol.replaceChildren();
-    if (!top.length) ol.append(h("li", {}, [h("span", { class: "m-age", text: `${L.deathAge}さい` }), h("span", { text: "短い一生でしたが、家族はタマゴからかえった日のことをずっと覚えています。" })]));
-    top.forEach((e) => ol.append(h("li", { class: `m-${e.kind}` }, [h("span", { class: "m-age", text: `${e.age}さい` }), h("span", { text: e.text })])));
-
+    drawRecords(L);
+    drawMoments(L);
+    $("#compare-bars").replaceChildren();
+    $("#end-compare").textContent = "同じ日にかえった1万匹を計算しています…";
     $("#end-seed").textContent = String(state.seed);
     const endLog = $("#end-log");
     endLog.replaceChildren();
     L.history.forEach((e) => pushLog(endLog, e, false));
     $(".history").open = false;
 
-    const compare = $("#end-compare");
-    compare.textContent = "同じ日にかえった1万匹を計算しています…";
-    state.manyFast = true; // まとめ画面では、計算を急ぐ
+    // 称号発表
+    const reveal = $("#reveal");
+    reveal.className = "reveal";
+    reveal.hidden = false;
+    $("#reveal-lead").textContent = `${L.name}の一生にあたえられる称号は…`;
+    $("#reveal-stars").textContent = "";
+    $("#reveal-title").textContent = "";
+    $("#reveal-rarity").textContent = "";
+    $("#reveal-fx").replaceChildren();
+    state.manyFast = true; // 称号のレア度を出すため、計算を急ぐ
     show("screen-end");
-    ensureMany().then((res) => {
-      if (state.life !== L) return;
-      const sum = res.summary;
-      const count = sum.titles[L.title] || 0;
-      const rar = rarityOf(L.title, count, sum.total);
-      card.classList.add(rar.cls);
-      $("#card-rarity").textContent = L.title === "smallStar" ? rar.label : `${rar.label}（1万匹中 ${fmt(count)}匹）`;
-      const row = sum.byCountry.find((r) => r.id === L.birthCountry);
-      let text = `${c0.name}で生まれたモンスターの平均寿命は ${row.avgAge.toFixed(1)}さい（1万匹を計算した結果）。`;
-      if (L.deathAge < 5) text += `${c0.name}では、100匹のうち約${Math.max(1, Math.round(row.under5 * 100))}匹が5さいまでに亡くなります。`;
-      else if (L.deathAge >= row.avgAge + 10) text += "平均よりずっと長い一生でした。";
-      else if (L.deathAge <= row.avgAge - 10) text += "平均よりずっと短い一生でした。";
-      compare.textContent = text;
-    });
+    const [res] = await Promise.all([ensureMany(), wait(2200)]);
+    if (state.life !== L) return;
+
+    const sum = res.summary;
+    const count = sum.titles[L.title] || 0;
+    const rar = rarityOf(L.title, count, sum.total);
+    const rarityText = L.title === "smallStar" ? rar.label : `${rar.label}（1万匹中 ${fmt(count)}匹）`;
+    $("#reveal-stars").textContent = rar.stars;
+    $("#reveal-title").textContent = title.name;
+    $("#reveal-rarity").textContent = rarityText;
+    reveal.classList.add("done", rar.cls);
+    burst($("#reveal-fx"), rar);
+    $("#btn-reveal").focus({ preventScroll: true });
+
+    wrap.classList.add(rar.cls);
+    $("#card-rarity").textContent = `${rar.stars} ${rarityText}`;
+    drawCompare(L, sum);
+    state.pendingCard = L;
   }
+
+  function closeReveal() {
+    const reveal = $("#reveal");
+    if (reveal.hidden || !reveal.classList.contains("done")) return;
+    reveal.classList.add("closing");
+    setTimeout(() => {
+      reveal.hidden = true;
+      reveal.classList.remove("closing");
+      const card = $("#life-card");
+      card.classList.remove("show");
+      void card.offsetWidth;
+      card.classList.add("show");
+      if (state.pendingCard) drawLifeChart(state.pendingCard);
+      state.pendingCard = null;
+    }, 380);
+  }
+  $("#btn-reveal").addEventListener("click", closeReveal);
 
   // ============================================================
   //  1万匹を一気に計算する
@@ -638,7 +796,7 @@
     let res;
     state.manyFast = true;
     if (state.many) {
-      const steps = reduceMotion ? 1 : 24;
+      const steps = 24;
       for (let k = 1; k <= steps; k++) {
         progress(Math.round((MANY.n * k) / steps));
         await wait(30);
@@ -801,6 +959,7 @@
     clearTimer();
     state.life = null;
     $("#choice").hidden = true;
+    $("#reveal").hidden = true;
     show("screen-title");
   });
 
