@@ -125,21 +125,34 @@
     return i < 0 ? ui.bounds.length - 1 : i;
   }
 
-  // ルーレットを回す。最後は乱数 r の位置（0〜1 を一周とした角度）で止まる
-  // 前半 2.4秒は同じ速さで回り、後半 4.6秒かけてゆっくり止まる
-  function spinWheel(ui, r, index) {
+  // ルーレットを回す。最後はかならず乱数 r の位置（0〜1 を一周とした角度）で止まる。
+  // しばらく同じ速さで回り、クリックされたら（されなければ 4秒後に）なめらかに減速して止まる。
+  // 止める位置は先に決まっているので、クリックで変わるのは「止まり方」だけ。
+  function spinWheel(ui, r, index, stopButton) {
     return new Promise((resolve) => {
-      const target = -(r * 360) - 360 * 8;
-      const T1 = 2400;
-      const T2 = 4600;
-      const speed = target / (T1 + T2 / 3); // 1ミリ秒あたりの角度
-      const angleAt = (ms) => {
-        if (ms <= T1) return speed * ms;
-        const s = Math.min(1, (ms - T1) / T2);
-        return speed * T1 + ((speed * T2) / 3) * (1 - Math.pow(1 - s, 3));
+      const stopAt = r * 360; // 止まる角度（0〜360）
+      const CRUISE = 4000; // クリックがなければ、この時間で減速を始める
+      const BRAKE = 4600; // クリックがないときの減速時間
+      const speed = (stopAt + 360 * 9) / (CRUISE + BRAKE / 3); // 1ミリ秒あたりの角度
+      // 減速の計画：start の角度から distance だけ、duration ミリ秒かけて止まる（最初の速さ = speed になる）
+      let brake = null;
+      const planBrake = (t, idealMs) => {
+        const from = speed * t;
+        const base = (((stopAt - from) % 360) + 360) % 360;
+        let turns = Math.max(0, Math.round(((speed * idealMs) / 3 - base) / 360));
+        let distance = base + 360 * turns;
+        if ((3 * distance) / speed < 900) distance += 360;
+        brake = { t0: t, from, distance, duration: (3 * distance) / speed };
       };
+      const angleAt = (t) => {
+        if (!brake) return speed * t;
+        const s = Math.min(1, (t - brake.t0) / brake.duration);
+        return brake.from + brake.distance * (1 - Math.pow(1 - s, 3));
+      };
+      let finalRot = 0;
       const finish = () => {
-        ui.disc.style.transform = `rotate(${target}deg)`;
+        cleanup();
+        ui.disc.style.transform = `rotate(${finalRot}deg)`;
         ui.segs.forEach((g) => {
           g.classList.remove("is-on");
           g.classList.toggle("is-dim", Number(g.dataset.i) !== index);
@@ -149,12 +162,42 @@
         resolve();
       };
       ui.box.classList.remove("stopped");
+      ui.box.classList.add("spinning-wheel");
       const t0 = performance.now();
       let current = -1;
+      // クリック（タップ）・ストップボタンで止める
+      const stop = () => {
+        if (brake) return;
+        planBrake(performance.now() - t0, 1900);
+        const hint = ui.box.parentElement.querySelector(".lot-result .spinning");
+        if (hint) hint.textContent = "とまるよ…";
+        if (stopButton) {
+          stopButton.disabled = true;
+          stopButton.textContent = "とまれ〜！";
+        }
+      };
+      const cleanup = () => {
+        ui.box.removeEventListener("click", stop);
+        ui.box.classList.remove("spinning-wheel");
+        if (stopButton) {
+          stopButton.removeEventListener("click", stop);
+          stopButton.hidden = true;
+        }
+      };
+      ui.box.addEventListener("click", stop);
+      if (stopButton) {
+        stopButton.hidden = false;
+        stopButton.disabled = false;
+        stopButton.textContent = "ストップ！";
+        stopButton.addEventListener("click", stop);
+        stopButton.focus({ preventScroll: true });
+      }
       const frame = (now) => {
         const ms = now - t0;
-        const t = Math.min(1, ms / (T1 + T2));
-        const rot = t >= 1 ? target : angleAt(ms);
+        if (!brake && ms >= CRUISE) planBrake(CRUISE, BRAKE);
+        const done = brake && ms - brake.t0 >= brake.duration;
+        const rot = -(done ? brake.from + brake.distance : angleAt(ms));
+        if (done) finalRot = rot;
         ui.disc.style.transform = `rotate(${rot}deg)`;
         const i = segmentAt(ui, rot);
         if (i !== current) {
@@ -165,7 +208,7 @@
           void ui.pointer.getBoundingClientRect();
           ui.pointer.classList.add("tick");
         }
-        if (t < 1) requestAnimationFrame(frame);
+        if (!done) requestAnimationFrame(frame);
         else finish();
       };
       requestAnimationFrame(frame);
@@ -190,10 +233,10 @@
 
     const shortName = { yutaka: "ユタカ", midori: "ミドリ", hateno: "ハテノ", sunaoka: "スナオカ", morinooku: "モリノオク" };
     const ui1 = buildWheel($("#wheel-country"), KICHU.countries.map((k) => ({ name: k.name, short: shortName[k.id] || k.name, weight: k.birthShare, color: k.color })));
-    $("#res-country").replaceChildren(h("span", { class: "spinning", text: "ルーレット、回転中…" }));
+    $("#res-country").replaceChildren(h("span", { class: "spinning", text: "ルーレットをクリックして止めよう" }));
     await wait(700);
     if (!alive()) return;
-    await spinWheel(ui1, life.lottery.country.r, life.lottery.country.index);
+    await spinWheel(ui1, life.lottery.country.r, life.lottery.country.index, $("#stop-country"));
     if (!alive()) return;
     $("#res-country").replaceChildren(h("span", { class: "pop" }, [`乱数 ${life.lottery.country.r.toFixed(4)} → `, h("b", { text: c.name })]));
 
@@ -203,10 +246,10 @@
     $("#wheel-family-box").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
     const familyColors = ["#ffc93c", "#9fb4ff", "#7c6fa8"];
     const ui2 = buildWheel($("#wheel-family"), KICHU.families.map((k, i) => ({ name: k.name, short: k.short, weight: c.familyOdds[i], color: familyColors[i] })));
-    $("#res-family").replaceChildren(h("span", { class: "spinning", text: "ルーレット、回転中…" }));
+    $("#res-family").replaceChildren(h("span", { class: "spinning", text: "ルーレットをクリックして止めよう" }));
     await wait(700);
     if (!alive()) return;
-    await spinWheel(ui2, life.lottery.family.r, life.lottery.family.index);
+    await spinWheel(ui2, life.lottery.family.r, life.lottery.family.index, $("#stop-family"));
     if (!alive()) return;
     $("#res-family").replaceChildren(h("span", { class: "pop" }, [`乱数 ${life.lottery.family.r.toFixed(4)} → `, h("b", { text: f.name })]));
 

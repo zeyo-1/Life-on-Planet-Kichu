@@ -6,8 +6,8 @@
   <title>きちゅう 1億分の1</title>
   <meta name="description" content="モンスターの惑星きちゅうで、ひとつの一生を生きてみる。授業用の人生シミュレーションゲーム。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Ccircle r='40' fill='%233CC6A5' stroke='%23231942' stroke-width='6'/%3E%3Ccircle cx='-12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='12' cy='-6' r='7' fill='%23fff'/%3E%3Ccircle cx='-11' cy='-5' r='3.5' fill='%23231942'/%3E%3Ccircle cx='13' cy='-5' r='3.5' fill='%23231942'/%3E%3C/svg%3E">
-  <link rel="preload" href="fonts/mochiy-pop-one-kichu.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="preload" href="fonts/mochiy-pop-one-kichu.woff2?v=6" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="sky-bg" aria-hidden="true"></div>
@@ -49,17 +49,20 @@
     <!-- ===== 誕生のルーレット ===== -->
     <section id="screen-birth" class="screen birth" aria-labelledby="birth-h" hidden>
       <h2 id="birth-h" class="screen-h">どこに生まれる？</h2>
-      <p class="soft birth-lead">ルーレットは、きちゅうで生まれる赤ちゃんの割合で区切られています。乱数を1つ引いて、止まった場所で決まります。</p>
+      <p class="soft birth-lead">ルーレットは、きちゅうで生まれる赤ちゃんの割合で区切られています。回っているルーレットをクリック（タップ）すると止まります。</p>
+      <p class="small peek-only peek-note">しくみ：じつは結果は、回り始める前に乱数で決まっています。止めるタイミングで結果は変わりません。</p>
 
       <div class="wheels">
         <div class="wheel-box" id="wheel-country-box">
           <h3 class="wheel-h">生まれる国</h3>
           <div class="wheel" id="wheel-country"></div>
+          <button type="button" class="btn btn-primary stop-btn" id="stop-country" hidden>ストップ！</button>
           <p class="lot-result" id="res-country" aria-live="polite"></p>
         </div>
         <div class="wheel-box" id="wheel-family-box" hidden>
           <h3 class="wheel-h">生まれる家</h3>
           <div class="wheel" id="wheel-family"></div>
+          <button type="button" class="btn btn-primary stop-btn" id="stop-family" hidden>ストップ！</button>
           <p class="lot-result" id="res-family" aria-live="polite"></p>
         </div>
       </div>
@@ -334,10 +337,10 @@ if (r &lt; p) {
   </footer>
 
   <!-- ?v= の数字は、ファイルを更新したら増やす（ブラウザに古いファイルが残らないように） -->
-  <script src="data.js?v=5"></script>
-  <script src="story.js?v=5"></script>
-  <script src="sim.js?v=5"></script>
-  <script src="scene.js?v=5"></script>
-  <script src="game.js?v=5"></script>
+  <script src="data.js?v=6"></script>
+  <script src="story.js?v=6"></script>
+  <script src="sim.js?v=6"></script>
+  <script src="scene.js?v=6"></script>
+  <script src="game.js?v=6"></script>
 </body>
 </html>
