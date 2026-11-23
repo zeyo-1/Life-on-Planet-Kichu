@@ -171,6 +171,16 @@ body.peek span.peek-only { display: inline; }
 .wheel .seg-label { font-family: var(--pop); font-size: 13px; fill: #fff; stroke: var(--ink); stroke-width: 3.5px; paint-order: stroke; }
 .wheel .seg-pct { font-size: 11px; font-family: var(--font); font-weight: 700; }
 .wheel .seg.is-dim { opacity: 0.45; }
+.wheel .seg.is-on path { filter: brightness(1.25) saturate(1.2); }
+.wheel .seg.is-win path { stroke-width: 5; }
+.wheel .pointer { transform-box: view-box; transform-origin: 0px -124px; }
+.wheel .pointer.tick { animation: tick 0.14s ease-out; }
+@keyframes tick { 35% { transform: rotate(-24deg); } }
+.wheel.stopped svg { animation: bump 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes bump { 40% { transform: scale(1.06); } }
+.spinning { color: var(--soft-light); animation: blink 0.8s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.4; } }
+.pop { display: inline-block; animation: pop-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1); }
 .lot-result { min-height: 2.2em; margin-top: 10px; font-size: 1.05rem; }
 .lot-result b { font-family: var(--pop); font-weight: 400; font-size: 1.25rem; color: var(--sun); }
 

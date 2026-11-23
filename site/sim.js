@@ -82,6 +82,7 @@ const KichuSim = (() => {
       migrated: false,
       flags: {},
       counts: {},
+      lastAt: {},
       goodCount: 0,
       badCount: 0,
       history: [],
@@ -148,11 +149,15 @@ const KichuSim = (() => {
     for (const ev of STORY.events) {
       if (L.age < ev.ages[0] || L.age > ev.ages[1]) continue;
       if (ev.max && (L.counts[ev.id] || 0) >= ev.max) continue;
+      if (ev.cooldown && L.lastAt[ev.id] != null && L.age - L.lastAt[ev.id] < ev.cooldown) continue;
       if (ev.when && !ev.when(L)) continue;
       const p = typeof ev.rate === "function" ? ev.rate(L, c) : ev.rate;
       if (r < start + p) {
-        const text = typeof ev.text === "function" ? ev.text(L, c) : ev.text;
         L.counts[ev.id] = (L.counts[ev.id] || 0) + 1;
+        L.lastAt[ev.id] = L.age;
+        // 文がいくつか用意されていたら、おこった回数ごとに順番に使う（同じ文がつづかないように）
+        let text = typeof ev.text === "function" ? ev.text(L, c) : ev.text;
+        if (Array.isArray(text)) text = text[(L.counts[ev.id] - 1) % text.length];
         if (ev.id === "baby") L.kids += 1;
         const t = tools(L, out);
         t[ev.kind](text, ev.effect);

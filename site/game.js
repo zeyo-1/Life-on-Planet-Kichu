@@ -91,6 +91,7 @@
 
   function buildWheel(box, items) {
     const total = items.reduce((a, b) => a + b.weight, 0);
+    const bounds = [];
     let a = 0;
     let segs = "";
     items.forEach((it, i) => {
@@ -103,32 +104,58 @@
       if (share >= 0.14) label = `<text class="seg-label" x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="middle">${it.short}</text><text class="seg-label seg-pct" x="${lx.toFixed(1)}" y="${(ly + 14).toFixed(1)}" text-anchor="middle">${pct(share)}</text>`;
       else label = `<text class="seg-label seg-pct" x="${(Math.sin(mid) * 76).toFixed(1)}" y="${(-Math.cos(mid) * 76 + 4).toFixed(1)}" text-anchor="middle">${pct(share)}</text>`;
       segs += `<g class="seg" data-i="${i}"><path d="${arcPath(100, a, a1)}" fill="${it.color}" stroke="#231942" stroke-width="3" stroke-linejoin="round"/>${label}</g>`;
+      bounds.push(a1 / (Math.PI * 2));
       a = a1;
     });
     box.innerHTML = `<svg viewBox="-118 -128 236 246" role="img" aria-label="${items.map((it) => `${it.name} ${pct(it.weight / total)}`).join("、")}">
       <circle r="108" fill="#fffdf7" stroke="#231942" stroke-width="4"/>
       <g class="disc">${segs}</g>
       <circle r="18" fill="#3cc6a5" stroke="#231942" stroke-width="3.5"/><circle cx="-6" cy="-3" r="4" fill="#fff"/><circle cx="6" cy="-3" r="4" fill="#fff"/><circle cx="-5.5" cy="-2.5" r="2" fill="#231942"/><circle cx="6.5" cy="-2.5" r="2" fill="#231942"/>
-      <path d="M-13 -124 H13 L0 -96Z" fill="#ffc93c" stroke="#231942" stroke-width="3.5" stroke-linejoin="round"/>
+      <path class="pointer" d="M-13 -124 H13 L0 -96Z" fill="#ffc93c" stroke="#231942" stroke-width="3.5" stroke-linejoin="round"/>
     </svg>`;
-    return { disc: box.querySelector(".disc"), box };
+    return { disc: box.querySelector(".disc"), pointer: box.querySelector(".pointer"), segs: Array.from(box.querySelectorAll(".seg")), bounds, box };
   }
 
+  // 針の下にある区画の番号（disc の回転角から計算）
+  function segmentAt(ui, rot) {
+    const f = (((-rot % 360) + 360) % 360) / 360;
+    const i = ui.bounds.findIndex((b) => f < b);
+    return i < 0 ? ui.bounds.length - 1 : i;
+  }
+
+  // ルーレットを回す。最後は乱数 r の位置（0〜1 を一周とした角度）で止まる
   function spinWheel(ui, r, index) {
     return new Promise((resolve) => {
-      const target = -(r * 360) - 360 * 4;
+      const target = -(r * 360) - 360 * 8;
       const finish = () => {
         ui.disc.style.transform = `rotate(${target}deg)`;
-        ui.box.querySelectorAll(".seg").forEach((g) => g.classList.toggle("is-dim", Number(g.dataset.i) !== index));
+        ui.segs.forEach((g) => {
+          g.classList.remove("is-on");
+          g.classList.toggle("is-dim", Number(g.dataset.i) !== index);
+          g.classList.toggle("is-win", Number(g.dataset.i) === index);
+        });
+        ui.box.classList.add("stopped");
         resolve();
       };
+      ui.box.classList.remove("stopped");
       if (reduceMotion) return finish();
-      const duration = 2600;
+      const duration = 6000;
       const t0 = performance.now();
+      let current = -1;
       const frame = (now) => {
         const t = Math.min(1, (now - t0) / duration);
         const eased = 1 - Math.pow(1 - t, 4);
-        ui.disc.style.transform = `rotate(${target * eased}deg)`;
+        const rot = target * eased;
+        ui.disc.style.transform = `rotate(${rot}deg)`;
+        const i = segmentAt(ui, rot);
+        if (i !== current) {
+          if (current >= 0) ui.segs[current].classList.remove("is-on");
+          ui.segs[i].classList.add("is-on");
+          current = i;
+          ui.pointer.classList.remove("tick");
+          void ui.pointer.getBoundingClientRect();
+          ui.pointer.classList.add("tick");
+        }
         if (t < 1) requestAnimationFrame(frame);
         else finish();
       };
@@ -153,25 +180,27 @@
 
     const shortName = { yutaka: "ユタカ", midori: "ミドリ", hateno: "ハテノ", sunaoka: "スナオカ", morinooku: "モリノオク" };
     const ui1 = buildWheel($("#wheel-country"), KICHU.countries.map((k) => ({ name: k.name, short: shortName[k.id] || k.name, weight: k.birthShare, color: k.color })));
-    await wait(500);
+    $("#res-country").replaceChildren(h("span", { class: "spinning", text: "ルーレット、回転中…" }));
+    await wait(700);
     if (!alive()) return;
     await spinWheel(ui1, life.lottery.country.r, life.lottery.country.index);
     if (!alive()) return;
-    $("#res-country").replaceChildren(`乱数 ${life.lottery.country.r.toFixed(4)} → `, h("b", { text: c.name }));
+    $("#res-country").replaceChildren(h("span", { class: "pop" }, [`乱数 ${life.lottery.country.r.toFixed(4)} → `, h("b", { text: c.name })]));
 
-    await wait(600);
+    await wait(1200);
     if (!alive()) return;
     $("#wheel-family-box").hidden = false;
     $("#wheel-family-box").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
     const familyColors = ["#ffc93c", "#9fb4ff", "#7c6fa8"];
     const ui2 = buildWheel($("#wheel-family"), KICHU.families.map((k, i) => ({ name: k.name, short: k.short, weight: c.familyOdds[i], color: familyColors[i] })));
-    await wait(300);
+    $("#res-family").replaceChildren(h("span", { class: "spinning", text: "ルーレット、回転中…" }));
+    await wait(700);
     if (!alive()) return;
     await spinWheel(ui2, life.lottery.family.r, life.lottery.family.index);
     if (!alive()) return;
-    $("#res-family").replaceChildren(`乱数 ${life.lottery.family.r.toFixed(4)} → `, h("b", { text: f.name }));
+    $("#res-family").replaceChildren(h("span", { class: "pop" }, [`乱数 ${life.lottery.family.r.toFixed(4)} → `, h("b", { text: f.name })]));
 
-    await wait(600);
+    await wait(1100);
     if (!alive()) return;
     const sp = KICHU.species.find((s) => s.id === life.species);
     const preview = KichuScene.create();

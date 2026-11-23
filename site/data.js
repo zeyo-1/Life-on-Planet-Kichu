@@ -40,7 +40,7 @@ const KICHU = {
       checkupCost: 3,
       sickRate: 0.03,
       jobLossRate: 0.02,
-      disaster: { text: "記録的な大雪で、町じゅうが止まった", rate: 0.01 },
+      disaster: { rate: 0.01, text: ["記録的な大雪で、町じゅうが止まった", "大停電で、町が3日間まっくらになった", "モノレールが故障して、町が大混乱した"] },
       mortality: { infant: 0.002, child: 0.0002, adult: 0.0003, aging: 0.000026 },
     },
     {
@@ -58,7 +58,7 @@ const KICHU = {
       checkupCost: 8,
       sickRate: 0.045,
       jobLossRate: 0.03,
-      disaster: { text: "大きな地震がおきて、家がこわれた", rate: 0.015 },
+      disaster: { rate: 0.015, text: ["大きな地震がおきて、家がこわれた", "ひょうが降って、畑の野菜がぜんぶだめになった", "竜巻が村を通りすぎていった"] },
       mortality: { infant: 0.008, child: 0.001, adult: 0.0008, aging: 0.000038 },
     },
     {
@@ -76,7 +76,7 @@ const KICHU = {
       checkupCost: 12,
       sickRate: 0.05,
       jobLossRate: 0.04,
-      disaster: { text: "大きな台風が島をおそった", rate: 0.06 },
+      disaster: { rate: 0.06, text: ["大きな台風が島をおそった", "高波で、家族の船が流された", "台風で、家の屋根が飛んでいった", "島じゅうが水びたしになる大雨がふった"] },
       mortality: { infant: 0.016, child: 0.002, adult: 0.0012, aging: 0.000055 },
     },
     {
@@ -94,7 +94,7 @@ const KICHU = {
       checkupCost: 18,
       sickRate: 0.07,
       jobLossRate: 0.05,
-      disaster: { text: "ひどい干ばつで、作物が育たなかった", rate: 0.05 },
+      disaster: { rate: 0.05, text: ["ひどい干ばつで、作物が育たなかった", "大きな砂嵐で、家が砂にうもれた", "井戸がかれて、水を遠くまでくみに行った", "イナゴの大群が畑をおそった"] },
       mortality: { infant: 0.024, child: 0.004, adult: 0.0018, aging: 0.00008 },
     },
     {
@@ -112,7 +112,7 @@ const KICHU = {
       checkupCost: 22,
       sickRate: 0.08,
       jobLossRate: 0.05,
-      disaster: { text: "大雨で川があふれ、家が流された", rate: 0.04 },
+      disaster: { rate: 0.04, text: ["大雨で川があふれ、家が流された", "山くずれで、村への道がふさがれた", "森の大火事で、村が煙につつまれた", "長雨で、畑の作物がくさってしまった"] },
       mortality: { infant: 0.035, child: 0.006, adult: 0.0022, aging: 0.00011 },
     },
   ],

@@ -403,59 +403,166 @@ const STORY = {
   ],
 
   // ---------- 毎年おこるかもしれない できごと ----------
-  // ages : おこる年れいの範囲 [から, まで]
-  // rate : 1年のうちに おこる確率（数字、または L と国から計算する関数）
-  // when : おこるための条件（なければ いつでも）
-  // max  : 一生のうちに おこる最大の回数
-  // kind : "great"（大成功）, "good"（うれしい）, "bad"（つらい）
+  // ages     : おこる年れいの範囲 [から, まで]
+  // rate     : 1年のうちに おこる確率（数字、または L と国から計算する関数）
+  // when     : おこるための条件（なければ いつでも）
+  // max      : 一生のうちに おこる最大の回数
+  // cooldown : 一度おこったら、次におこるまで あける年数
+  // kind     : "great"（大成功）, "good"（うれしい）, "bad"（つらい）, "info"（ふつう）
+  // text     : 文。["…", "…"] のように いくつか書くと、おこるたびに順番に使われる
   events: [
-    // --- きびしい現実 ---
-    { id: "sick", ages: [1, 120], kind: "bad", rate: (L, c) => c.sickRate * (L.age < 5 ? 1.6 : L.age >= 60 ? 1.5 : 1), text: (L) => (L.age < 5 ? "高い熱が続く病気にかかった" : "重い病気にかかった"), effect: { health: -12, happy: -4 } },
-    { id: "injury", ages: [5, 60], kind: "bad", rate: 0.02, text: "大きなけがをして、しばらく動けなかった", effect: { health: -6, happy: -2 } },
-    { id: "disaster", ages: [1, 120], kind: "bad", rate: (L, c) => c.disaster.rate, text: (L, c) => c.disaster.text, effect: { money: -14, health: -5, happy: -6 } },
-    { id: "childWork", ages: [7, 14], kind: "bad", max: 2, rate: 0.15, when: (L) => L.family === "kibishii" || !L.school, text: "家計を助けるため、朝から晩まで働いた", effect: { money: 4, learn: -3, health: -2 } },
-    { id: "jobLoss", ages: [23, 64], kind: "bad", rate: (L, c) => c.jobLossRate, text: "働いていた会社がなくなってしまった", effect: { money: -14, happy: -8 } },
-    { id: "back", ages: [50, 120], kind: "bad", rate: 0.04, text: "腰をいためてしまった", effect: { health: -6, happy: -2 } },
+    // ===== きびしい現実（国や家によって確率がちがう） =====
+    {
+      id: "sick", ages: [1, 120], kind: "bad", cooldown: 2,
+      rate: (L, c) => c.sickRate * (L.age < 5 ? 1.6 : L.age >= 60 ? 1.5 : 1),
+      text: (L) => L.age < 5
+        ? ["高い熱が続く病気にかかった", "おなかの病気で、何日もねこんだ", "せきが止まらない病気にかかった"]
+        : ["重い病気にかかって入院した", "きちゅうインフルエンザにかかった", "原因のわからない熱が続いた", "胸の病気で、しばらく働けなかった", "おなかをこわして、1週間ねこんだ", "目の病気で、しばらく本が読めなかった"],
+      effect: { health: -12, happy: -4 },
+    },
+    { id: "injury", ages: [5, 60], kind: "bad", rate: 0.018, max: 3, cooldown: 5, text: ["大きなけがをして、しばらく動けなかった", "階段から落ちて、骨を折った", "スポーツ中に、アンテナをいためた"], effect: { health: -6, happy: -2 } },
+    { id: "disaster", ages: [1, 120], kind: "bad", cooldown: 3, rate: (L, c) => c.disaster.rate, text: (L, c) => c.disaster.text, effect: { money: -14, health: -5, happy: -6 } },
+    { id: "childWork", ages: [7, 14], kind: "bad", max: 2, rate: 0.12, when: (L) => L.family === "kibishii" || !L.school, text: ["家計を助けるため、朝から晩まで働いた", "弟や妹の世話で、遊ぶ時間がなかった"], effect: { money: 4, learn: -3, health: -2 } },
+    { id: "water", ages: [6, 16], kind: "bad", max: 1, rate: 0.1, when: (L) => (L.country === "sunaoka" || L.country === "morinooku") && L.family !== "yutori", text: "毎朝、遠くの井戸まで水をくみに行った", effect: { health: -2, learn: -2 } },
+    { id: "jobLoss", ages: [23, 64], kind: "bad", max: 2, cooldown: 6, rate: (L, c) => c.jobLossRate, text: ["働いていた会社がなくなってしまった", "仕事がへって、給料が下がった"], effect: { money: -14, happy: -8 } },
+    { id: "debt", ages: [25, 64], kind: "bad", max: 1, rate: 0.04, when: (L) => L.money < 20, text: "生活費が足りず、借金をした", effect: { money: 4, happy: -6 } },
+    { id: "fraud", ages: [25, 80], kind: "bad", max: 1, rate: 0.008, text: "「絶対もうかる」という話にだまされた", effect: { money: -10, happy: -4 } },
+    { id: "overwork", ages: [25, 60], kind: "bad", max: 1, rate: 0.012, text: "働きすぎて、たおれてしまった", effect: { health: -6 } },
+    { id: "back", ages: [50, 120], kind: "bad", max: 2, cooldown: 8, rate: 0.03, text: ["腰をいためてしまった", "ひざが痛くて、階段がつらくなった"], effect: { health: -6, happy: -2 } },
 
-    // --- 子ども・学生のころ ---
-    { id: "friend", ages: [4, 20], kind: "good", rate: 0.07, max: 2, text: "なんでも話せる親友ができた", effect: { happy: 8 } },
-    { id: "base", ages: [6, 12], kind: "good", rate: 0.05, max: 1, text: "友だちと森に秘密基地を作った", effect: { happy: 6 } },
-    { id: "pudding", ages: [7, 14], kind: "good", rate: 0.05, max: 1, when: (L) => L.school, text: "給食のプリンをかけたじゃんけんで10連勝した", effect: { happy: 5 } },
-    { id: "zero", ages: [8, 17], kind: "bad", rate: 0.03, max: 1, when: (L) => L.school, text: "テストで0点をとった。名前を書き忘れていた", effect: { happy: -3, learn: 2 } },
-    { id: "relay", ages: [9, 18], kind: "good", max: 1, rate: (L) => (L.trait === "run" ? 0.12 : 0.03), when: (L) => L.school, text: "リレーのアンカーで3匹ぬきした！", effect: { happy: 7, health: 3 } },
-    { id: "play", ages: [12, 18], kind: "good", rate: 0.05, max: 1, when: (L) => L.school, text: "文化祭の劇で、木の役なのに主役より目立った", effect: { happy: 6 } },
-    { id: "bookLove", ages: [7, 25], kind: "good", max: 1, rate: (L) => (L.trait === "book" ? 0.1 : 0.03), text: "図書館の本を、ぜんぶ読みおわった", effect: { learn: 10, happy: 3 } },
+    // ===== 赤ちゃんのころ =====
+    { id: "firstWord", ages: [1, 2], kind: "good", max: 1, rate: 0.25, text: "はじめてしゃべった言葉は「ごはん」だった", effect: { happy: 3 } },
+    { id: "firstWalk", ages: [1, 2], kind: "good", max: 1, rate: 0.2, text: "はじめて歩いた！ 3歩でころんだ", effect: { happy: 3 } },
+    { id: "antenna", ages: [1, 5], kind: "good", max: 1, rate: 0.08, text: "頭のアンテナが、はじめてピカッと光った", effect: { happy: 4 } },
+    { id: "toy", ages: [2, 5], kind: "info", max: 1, rate: 0.08, text: "おもちゃを分解して、元にもどせなくなった", effect: { learn: 1 } },
+    { id: "hide", ages: [3, 7], kind: "info", max: 1, rate: 0.06, text: "かくれんぼで本気でかくれすぎて、夕方まで見つけてもらえなかった", effect: {} },
 
-    // --- きちゅうならではの不思議 ---
-    { id: "doubleMoon", ages: [5, 110], kind: "great", rate: 0.008, max: 1, text: "2つの月が重なる「ダブルムーン」を見た。願いごとをした", effect: { happy: 8 } },
-    { id: "meteor", ages: [10, 90], kind: "great", rate: 0.005, max: 1, text: "道で拾った石が、なんと隕石だった！", effect: { money: 18, happy: 5 } },
-    { id: "alien", ages: [15, 95], kind: "good", rate: 0.006, max: 1, text: "となりの星から来た旅行者に、道を聞かれた", effect: { happy: 5 } },
-    { id: "net", ages: [10, 60], kind: "good", max: 1, rate: (L, c) => c.netRate * 0.03, text: "住んでいる町に「きちゅうネット」がつながった", effect: { learn: 6, happy: 3 } },
-    { id: "flame", ages: [15, 50], kind: "bad", max: 1, rate: 0.03, when: (L) => L.skill === "code" || L.job === "streamer", text: "きちゅうネットで炎上した…しばらくスマホを封印", effect: { happy: -8 } },
+    // ===== 子どものころ =====
+    { id: "friend", ages: [4, 20], kind: "good", rate: 0.05, max: 2, cooldown: 4, text: ["なんでも話せる親友ができた", "大げんかした友だちと仲直りして、親友になった"], effect: { happy: 8 } },
+    { id: "base", ages: [6, 12], kind: "good", rate: 0.04, max: 1, text: "友だちと森に秘密基地を作った", effect: { happy: 6 } },
+    { id: "bugHero", ages: [6, 11], kind: "good", rate: 0.04, max: 1, text: "でっかい虫をつかまえて、クラスのヒーローになった", effect: { happy: 5 } },
+    { id: "fang", ages: [6, 9], kind: "info", rate: 0.06, max: 1, text: "はじめてキバがぬけた。屋根の上に投げた", effect: {} },
+    { id: "lost", ages: [5, 10], kind: "bad", rate: 0.03, max: 1, text: "おつかいの帰りに迷子になって、泣いた", effect: { happy: -2 } },
+    { id: "window", ages: [7, 13], kind: "bad", rate: 0.03, max: 1, text: "ボール遊びで、近所の家の窓をわってしまった", effect: { money: -2, happy: -3 } },
+    { id: "moonView", ages: [5, 15], kind: "good", rate: 0.04, max: 1, text: "家族で月見をした。2つの月が両方まんまるだった", effect: { happy: 5 } },
+    { id: "babyMofu", ages: [6, 15], kind: "good", rate: 0.03, max: 1, text: "迷子の子モフを、家まで送りとどけた", effect: { happy: 5 } },
+    { id: "pudding", ages: [7, 14], kind: "good", rate: 0.04, max: 1, when: (L) => L.school, text: "給食のプリンをかけたじゃんけんで10連勝した", effect: { happy: 5 } },
+    { id: "research", ages: [7, 12], kind: "good", rate: 0.04, max: 1, when: (L) => L.school, text: "夏休みの自由研究「アンテナはなぜ光るのか」で賞をとった", effect: { learn: 5, happy: 3 } },
+    { id: "drawing", ages: [6, 12], kind: "good", rate: 0.03, max: 1, text: "描いた絵が、町のコンクールで入選した", effect: { happy: 5 } },
+    { id: "zero", ages: [8, 17], kind: "bad", rate: 0.025, max: 1, when: (L) => L.school, text: "テストで0点をとった。名前を書き忘れていた", effect: { happy: -3, learn: 2 } },
+    { id: "relay", ages: [9, 18], kind: "good", max: 1, rate: (L) => (L.trait === "run" ? 0.1 : 0.025), when: (L) => L.school, text: "リレーのアンカーで3匹ぬきした！", effect: { happy: 7, health: 3 } },
+    { id: "bookLove", ages: [7, 25], kind: "good", max: 1, rate: (L) => (L.trait === "book" ? 0.08 : 0.02), text: "図書館の本を、ぜんぶ読みおわった", effect: { learn: 10, happy: 3 } },
 
-    // --- 仕事ごとのできごと ---
-    { id: "chefBuzz", ages: [23, 70], kind: "good", max: 2, rate: 0.05, when: (L) => L.job === "chef", text: "新メニュー「きちゅう焼き」に行列ができた", effect: { money: 10, happy: 4 } },
-    { id: "streamBuzz", ages: [23, 60], kind: "good", max: 2, rate: 0.06, when: (L) => L.job === "streamer", text: "動画「モフの寝顔 10時間」が100万回再生された", effect: { money: 12, happy: 5 } },
-    { id: "bug", ages: [23, 64], kind: "bad", max: 2, rate: 0.06, when: (L) => L.job === "programmer", text: "バグを直すため、3日間徹夜した", effect: { health: -5, happy: -3 } },
-    { id: "appHit", ages: [23, 64], kind: "great", max: 1, rate: 0.03, when: (L) => L.job === "programmer", text: "作ったアプリが、きちゅう中で使われた！", effect: { money: 15, happy: 6 } },
-    { id: "paper", ages: [23, 70], kind: "good", max: 2, rate: 0.05, when: (L) => L.job === "researcher", text: "論文が「きちゅう科学」の表紙をかざった", effect: { learn: 8, money: 5 } },
-    { id: "island", ages: [23, 70], kind: "good", max: 2, rate: 0.06, when: (L) => L.job === "explorer", text: "地図にのっていない島を見つけた", effect: { happy: 8 } },
-    { id: "goal", ages: [23, 40], kind: "good", max: 2, rate: 0.06, when: (L) => L.job === "athlete", text: "試合で決勝ゴールを決めた！", effect: { happy: 8, money: 6 } },
-    { id: "invent", ages: [23, 80], kind: "good", max: 2, rate: 0.05, when: (L) => L.job === "inventor", text: "自動でネギを切るマシンを発明した（売れなかった）", effect: { happy: 4, money: -3 } },
-    { id: "vetSave", ages: [23, 70], kind: "good", max: 2, rate: 0.06, when: (L) => L.job === "vet", text: "けがをした鳥を治して、空へ返した", effect: { happy: 6 } },
-    { id: "mail", ages: [23, 64], kind: "good", max: 1, rate: 0.05, when: (L) => L.job === "postman", text: "月面の小さな村に、はじめて手紙を届けた", effect: { happy: 6, money: 4 } },
-    { id: "festival", ages: [23, 80], kind: "good", max: 2, rate: 0.04, when: (L) => L.job === "home", text: "村祭りでおどりを披露し、大ウケした", effect: { happy: 6 } },
-    { id: "promotion", ages: [23, 64], kind: "good", rate: (L) => 0.025 + L.learn / 1200, text: "仕事が認められて、給料が上がった", effect: { money: 14, happy: 4 } },
+    // ===== 国ごとのくらし =====
+    { id: "monorail", ages: [6, 15], kind: "good", rate: 0.05, max: 1, when: (L) => L.country === "yutaka", text: "モノレールの運転席を見学させてもらった", effect: { happy: 5 } },
+    { id: "late", ages: [20, 64], kind: "info", rate: 0.03, max: 1, when: (L) => L.country === "yutaka", text: "モノレールが止まって、大事な日に遅刻した", effect: { happy: -1 } },
+    { id: "windmill", ages: [6, 15], kind: "good", rate: 0.05, max: 1, when: (L) => L.country === "midori", text: "風車のてっぺんから、町じゅうを見下ろした", effect: { happy: 5 } },
+    { id: "harvest", ages: [20, 80], kind: "good", rate: 0.03, max: 1, when: (L) => L.country === "midori", text: "大豊作！ 野菜をご近所に配ってまわった", effect: { happy: 6, money: 3 } },
+    { id: "fishing", ages: [6, 20], kind: "good", rate: 0.05, max: 1, when: (L) => L.country === "hateno", text: "はじめて自分で大きな魚をつった", effect: { happy: 5 } },
+    { id: "whale", ages: [10, 90], kind: "great", rate: 0.015, max: 1, when: (L) => L.country === "hateno", text: "海で、空飛ぶクジラの群れを見た！", effect: { happy: 8 } },
+    { id: "sled", ages: [6, 15], kind: "good", rate: 0.05, max: 1, when: (L) => L.country === "sunaoka", text: "砂の丘をソリですべって遊んだ", effect: { happy: 5 } },
+    { id: "oasis", ages: [15, 80], kind: "good", rate: 0.02, max: 1, when: (L) => L.country === "sunaoka", text: "砂漠で、地図にないオアシスを見つけた", effect: { happy: 6 } },
+    { id: "treeHouse", ages: [6, 14], kind: "good", rate: 0.05, max: 1, when: (L) => L.country === "morinooku", text: "大きな木の上に、ツリーハウスを作った", effect: { happy: 5 } },
+    { id: "parade", ages: [5, 90], kind: "good", rate: 0.02, max: 1, when: (L) => L.country === "morinooku", text: "王様のパレードで、手をふってもらった", effect: { happy: 5 } },
 
-    // --- おとなになってから ---
-    { id: "travel", ages: [18, 80], kind: "good", rate: (L) => 0.005 + L.money / 1000, text: "きちゅうの反対側まで旅をした", effect: { happy: 10, money: -4 } },
-    { id: "lottery", ages: [18, 120], kind: "great", max: 1, rate: 0.005, text: "くじで大当たり！", effect: { money: 20, happy: 6 } },
-    { id: "baby", ages: [29, 42], kind: "good", max: 3, rate: 0.18, when: (L) => L.partner, text: "子どもがタマゴからかえった！", effect: { happy: 10, money: -5 } },
-    { id: "mofu", ages: [29, 95], kind: "good", max: 2, rate: 0.08, when: (L) => L.pet, text: "モフが「おすわり」を覚えた（3年かかった）", effect: { happy: 5 } },
+    // ===== 種族ならでは =====
+    { id: "melt", ages: [8, 90], kind: "info", rate: 0.03, max: 1, when: (L) => L.species === "purun", text: "暑すぎる日に、体が少しとけかけた", effect: {} },
+    { id: "puff", ages: [5, 90], kind: "info", rate: 0.03, max: 1, when: (L) => L.species === "moko", text: "雨の日に毛が2倍にふくらみ、ドアを通れなかった", effect: {} },
+    { id: "weather", ages: [8, 90], kind: "good", rate: 0.03, max: 1, when: (L) => L.species === "tsuno", text: "ツノで天気を当てて、町の天気予報係になった", effect: { happy: 5 } },
+    { id: "farSight", ages: [8, 90], kind: "good", rate: 0.03, max: 1, when: (L) => L.species === "gyoro", text: "大きな目で、遠くにいる迷子を見つけた", effect: { happy: 5 } },
+    { id: "fly", ages: [8, 60], kind: "great", rate: 0.03, max: 1, when: (L) => L.species === "pata", text: "はじめて10秒間、空を飛べた！", effect: { happy: 8 } },
+
+    // ===== 性格・特技ならでは =====
+    { id: "marathon", ages: [12, 50], kind: "good", rate: 0.04, max: 1, when: (L) => L.trait === "run", text: "きちゅうマラソンで優勝した！", effect: { happy: 6, health: 4 } },
+    { id: "quiz", ages: [12, 60], kind: "good", rate: 0.04, max: 1, when: (L) => L.trait === "book", text: "クイズ大会で、町いちばんになった", effect: { happy: 6, learn: 3 } },
+    { id: "clock", ages: [10, 40], kind: "good", rate: 0.04, max: 1, when: (L) => L.trait === "make", text: "目覚まし時計を改造して、毎朝おどる時計にした", effect: { happy: 5, learn: 2 } },
+    { id: "newStar", ages: [8, 60], kind: "info", rate: 0.04, max: 1, when: (L) => L.trait === "sky", text: "夜空に新しい星を見つけた…と思ったら、飛行機だった", effect: { happy: 1 } },
+    { id: "stage", ages: [13, 19], kind: "good", rate: 0.08, max: 1, when: (L) => L.skill === "music", text: "文化祭のステージで歌った。拍手が鳴りやまなかった", effect: { happy: 8 } },
+    { id: "fullCourse", ages: [13, 19], kind: "good", rate: 0.08, max: 1, when: (L) => L.skill === "cook", text: "家族の誕生日に、フルコースを作った", effect: { happy: 6 } },
+    { id: "schoolApp", ages: [14, 19], kind: "good", rate: 0.06, max: 1, when: (L) => L.skill === "code", text: "作ったアプリを、学校のみんなが使い始めた", effect: { learn: 4, happy: 5 } },
+    { id: "birdHome", ages: [13, 19], kind: "good", rate: 0.08, max: 1, when: (L) => L.skill === "animal", text: "迷子の鳥を、鳴き声だけで家に帰した", effect: { happy: 6 } },
+
+    // ===== 中学生・高校生のころ =====
+    { id: "play", ages: [12, 18], kind: "good", rate: 0.04, max: 1, when: (L) => L.school, text: "文化祭の劇で、木の役なのに主役より目立った", effect: { happy: 6 } },
+    { id: "trip", ages: [12, 17], kind: "good", rate: 0.05, max: 1, when: (L) => L.school, text: "修学旅行のまくら投げ大会で優勝した", effect: { happy: 6 } },
+    { id: "topScore", ages: [14, 18], kind: "good", rate: 0.08, max: 1, when: (L) => L.school && L.learn >= 50, text: "テストで学年1位をとった", effect: { learn: 6, happy: 4 } },
+    { id: "allNighter", ages: [14, 18], kind: "bad", rate: 0.03, max: 1, when: (L) => L.school, text: "テスト前に一夜づけしようとして、すぐねむってしまった", effect: { learn: -2 } },
+    { id: "talk", ages: [14, 19], kind: "good", rate: 0.04, max: 1, text: "親友と、夜明けまで将来の話をした", effect: { happy: 5 } },
+    { id: "growth", ages: [13, 16], kind: "info", rate: 0.06, max: 1, text: "1年で、体がひとまわり大きくなった", effect: { health: 2 } },
+    { id: "partTime", ages: [15, 19], kind: "good", rate: 0.05, max: 1, text: "はじめてのアルバイト代で、家族にケーキを買った", effect: { money: 3, happy: 5 } },
+    { id: "license", ages: [17, 30], kind: "good", rate: 0.04, max: 1, text: "空飛ぶスクーターの免許をとった", effect: { happy: 5 } },
+    { id: "phone", ages: [14, 30], kind: "bad", rate: 0.015, max: 1, text: "スマホを海に落とした", effect: { money: -3, happy: -3 } },
+
+    // ===== きちゅうならではの不思議 =====
+    { id: "doubleMoon", ages: [5, 110], kind: "great", rate: 0.006, max: 1, text: "2つの月が重なる「ダブルムーン」を見た。願いごとをした", effect: { happy: 8 } },
+    { id: "meteor", ages: [10, 90], kind: "great", rate: 0.004, max: 1, text: "道で拾った石が、なんと隕石だった！", effect: { money: 18, happy: 5 } },
+    { id: "alien", ages: [15, 95], kind: "good", rate: 0.005, max: 1, text: "となりの星から来た旅行者に、道を聞かれた", effect: { happy: 5 } },
+    { id: "rainbow", ages: [5, 100], kind: "good", rate: 0.006, max: 1, text: "空に3本の虹がならんだ。いいことがありそう", effect: { happy: 4 } },
+    { id: "net", ages: [10, 60], kind: "good", max: 1, rate: (L, c) => c.netRate * 0.02, text: "住んでいる町に「きちゅうネット」がつながった", effect: { learn: 6, happy: 3 } },
+    { id: "flame", ages: [15, 50], kind: "bad", max: 1, rate: 0.025, when: (L) => L.skill === "code" || L.job === "streamer", text: "きちゅうネットで炎上した…しばらくスマホを封印", effect: { happy: -8 } },
+    { id: "wallet", ages: [20, 80], kind: "info", rate: 0.008, max: 1, text: "財布を落とした。次の日、なぜかカラスが届けてくれた", effect: {} },
+
+    // ===== 仕事ごとのできごと =====
+    { id: "chefBuzz", ages: [23, 70], kind: "good", max: 1, rate: 0.04, when: (L) => L.job === "chef", text: "新メニュー「きちゅう焼き」に行列ができた", effect: { money: 10, happy: 4 } },
+    { id: "critic", ages: [23, 70], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "chef", text: "有名な料理評論家が、屋台に食べに来た", effect: { happy: 6, money: 4 } },
+    { id: "price", ages: [23, 70], kind: "bad", max: 1, rate: 0.03, when: (L) => L.job === "chef", text: "食材が値上がりして、メニューを減らした", effect: { money: -6 } },
+    { id: "streamBuzz", ages: [23, 60], kind: "good", max: 1, rate: 0.05, when: (L) => L.job === "streamer", text: "動画「モフの寝顔 10時間」が100万回再生された", effect: { money: 12, happy: 5 } },
+    { id: "collab", ages: [23, 60], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "streamer", text: "あこがれの大物配信者とコラボした", effect: { happy: 7 } },
+    { id: "asleep", ages: [23, 60], kind: "info", max: 1, rate: 0.03, when: (L) => L.job === "streamer", text: "配信中に寝落ちした。その回が過去最高の視聴数だった", effect: { money: 3 } },
+    { id: "bug", ages: [23, 64], kind: "bad", max: 2, cooldown: 5, rate: 0.04, when: (L) => L.job === "programmer", text: ["バグを直すため、3日間徹夜した", "大事な発表の直前に、プログラムが動かなくなった"], effect: { health: -5, happy: -3 } },
+    { id: "hackathon", ages: [23, 50], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "programmer", text: "きちゅうハッカソンで優勝した", effect: { happy: 6, money: 5 } },
+    { id: "appHit", ages: [23, 64], kind: "great", max: 1, rate: 0.02, when: (L) => L.job === "programmer", text: "作ったアプリが、きちゅう中で使われた！", effect: { money: 15, happy: 6 } },
+    { id: "paper", ages: [23, 70], kind: "good", max: 1, rate: 0.04, when: (L) => L.job === "researcher", text: "論文が「きちゅう科学」の表紙をかざった", effect: { learn: 8, money: 5 } },
+    { id: "explode", ages: [23, 70], kind: "info", max: 1, rate: 0.03, when: (L) => L.job === "researcher", text: "実験が爆発して、髪型が変わった", effect: {} },
+    { id: "island", ages: [23, 70], kind: "good", max: 1, rate: 0.05, when: (L) => L.job === "explorer", text: "地図にのっていない島を見つけた", effect: { happy: 8 } },
+    { id: "flower", ages: [23, 70], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "explorer", text: "ジャングルで、自分より大きな花を見つけた", effect: { happy: 6 } },
+    { id: "stranded", ages: [23, 70], kind: "bad", max: 1, rate: 0.03, when: (L) => L.job === "explorer", text: "雪山で遭難しかけた。モフにそっくりな生き物に助けられた", effect: { health: -5 } },
+    { id: "goal", ages: [23, 40], kind: "good", max: 1, rate: 0.05, when: (L) => L.job === "athlete", text: "試合で決勝ゴールを決めた！", effect: { happy: 8, money: 6 } },
+    { id: "sportInjury", ages: [23, 40], kind: "bad", max: 1, rate: 0.03, when: (L) => L.job === "athlete", text: "けがで、半年間試合に出られなかった", effect: { health: -5, happy: -4 } },
+    { id: "invent", ages: [23, 80], kind: "info", max: 1, rate: 0.04, when: (L) => L.job === "inventor", text: "自動でネギを切るマシンを発明した（売れなかった）", effect: { happy: 2, money: -3 } },
+    { id: "patent", ages: [23, 80], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "inventor", text: "ねむくならない枕を発明して、特許をとった", effect: { money: 8, happy: 5 } },
+    { id: "vetSave", ages: [23, 70], kind: "good", max: 1, rate: 0.05, when: (L) => L.job === "vet", text: "けがをした鳥を治して、空へ返した", effect: { happy: 6 } },
+    { id: "nightCall", ages: [23, 70], kind: "info", max: 1, rate: 0.03, when: (L) => L.job === "vet", text: "夜中に急患のモフが運ばれてきた。原因は食べすぎだった", effect: {} },
+    { id: "mail", ages: [23, 64], kind: "good", max: 1, rate: 0.04, when: (L) => L.job === "postman", text: "月面の小さな村に、はじめて手紙を届けた", effect: { happy: 6, money: 4 } },
+    { id: "penguin", ages: [23, 64], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "postman", text: "ペンギンそっくりの宇宙人に、ラブレターを届けた", effect: { happy: 5 } },
+    { id: "festival", ages: [23, 80], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "home", text: "村祭りでおどりを披露し、大ウケした", effect: { happy: 6 } },
+    { id: "watermelon", ages: [23, 80], kind: "good", max: 1, rate: 0.03, when: (L) => L.job === "home", text: "村でいちばん大きなスイカを育てた", effect: { happy: 5 } },
+    { id: "language", ages: [22, 40], kind: "bad", max: 1, rate: 0.12, when: (L) => L.job === "newcomer", text: "ユタカ国の言葉がうまく話せず、苦労した", effect: { happy: -5 } },
+    { id: "newFriend", ages: [23, 60], kind: "good", max: 1, rate: 0.08, when: (L) => L.migrated, text: "ユタカ国で、なんでも話せる友だちができた", effect: { happy: 8 } },
+    { id: "promotion", ages: [23, 64], kind: "good", max: 3, cooldown: 4, rate: (L) => 0.02 + L.learn / 1500, text: ["仕事が認められて、給料が上がった", "チームのリーダーをまかされた", "社長に名前を覚えてもらえた"], effect: { money: 12, happy: 4 } },
+
+    // ===== おとなになってから =====
+    { id: "travel", ages: [18, 80], kind: "good", max: 3, cooldown: 6, rate: (L) => 0.004 + L.money / 1200, text: ["きちゅうの反対側まで旅をした", "月まで日帰り旅行をした", "南の島で、星空の下にねころんだ"], effect: { happy: 10, money: -4 } },
+    { id: "lottery", ages: [18, 120], kind: "great", max: 1, rate: 0.004, text: "くじで大当たり！", effect: { money: 20, happy: 6 } },
+    { id: "move", ages: [22, 50], kind: "info", max: 1, rate: 0.02, text: "引っこしをした。荷物の半分はガラクタだった", effect: {} },
+    { id: "bread", ages: [20, 60], kind: "info", max: 1, rate: 0.015, text: "はじめて焼いたパンが、石のように固かった", effect: {} },
+    { id: "reunion", ages: [30, 70], kind: "good", max: 1, rate: 0.02, text: "同窓会で、昔の親友と再会した", effect: { happy: 6 } },
+    { id: "neighbor", ages: [25, 85], kind: "good", max: 1, rate: 0.015, text: "となりに引っこしてきたモンスターと仲良くなった", effect: { happy: 5 } },
+    { id: "volunteer", ages: [20, 75], kind: "good", max: 1, rate: 0.015, text: "町のゴミ拾いボランティアで、表彰された", effect: { happy: 5 } },
+    { id: "scooter", ages: [20, 70], kind: "bad", max: 1, rate: 0.008, text: "空飛ぶスクーターで、電柱にぶつかった（けがは軽かった）", effect: { health: -3, money: -3 } },
+    { id: "house", ages: [30, 55], kind: "good", max: 1, rate: 0.04, when: (L) => L.money >= 60, text: "あこがれのマイホームを建てた", effect: { money: -10, happy: 10 } },
+    { id: "baby", ages: [29, 42], kind: "good", max: 3, rate: 0.16, when: (L) => L.partner, text: ["子どもがタマゴからかえった！", "2匹目の子どもがタマゴからかえった！", "3匹目の子どもがタマゴからかえった！"], effect: { happy: 10, money: -5 } },
+    { id: "kidWalk", ages: [30, 50], kind: "good", max: 1, rate: 0.15, when: (L) => L.kids > 0, text: "子どもがはじめて歩いた。家族みんなで拍手した", effect: { happy: 6 } },
+    { id: "kidSchool", ages: [36, 55], kind: "good", max: 1, rate: 0.1, when: (L) => L.kids > 0, text: "子どもの入学式で、こっそり泣いた", effect: { happy: 6 } },
+    { id: "rebel", ages: [42, 62], kind: "bad", max: 1, rate: 0.06, when: (L) => L.kids > 0, text: "子どもの反抗期で、毎日けんかになった", effect: { happy: -4 } },
+    { id: "kidGrad", ages: [48, 70], kind: "good", max: 1, rate: 0.08, when: (L) => L.kids > 0, text: "子どもがひとり立ちした。少しさみしい", effect: { happy: 4 } },
+    { id: "pudding2", ages: [29, 80], kind: "bad", max: 1, rate: 0.04, when: (L) => L.partner, text: "パートナーと大げんか。原因は冷蔵庫のプリンだった", effect: { happy: -3 } },
+    { id: "anniversary", ages: [35, 90], kind: "good", max: 1, rate: 0.04, when: (L) => L.partner, text: "記念日に、パートナーが手紙をくれた", effect: { happy: 7 } },
+    { id: "mofu", ages: [29, 95], kind: "good", max: 1, rate: 0.06, when: (L) => L.pet, text: "モフが「おすわり」を覚えた（3年かかった）", effect: { happy: 5 } },
+    { id: "mofuBig", ages: [30, 95], kind: "info", max: 1, rate: 0.05, when: (L) => L.pet, text: "モフが2倍の大きさに育った。ベッドをとられた", effect: { happy: 2 } },
+    { id: "mofuRun", ages: [30, 95], kind: "info", max: 1, rate: 0.04, when: (L) => L.pet, text: "モフが家出した…と思ったら、押し入れで寝ていた", effect: {} },
+
+    // ===== 年をとってから =====
     { id: "grandchild", ages: [52, 95], kind: "good", max: 1, rate: 0.1, when: (L) => L.kids > 0, text: "孫がタマゴからかえった！", effect: { happy: 10 } },
     { id: "gameLoss", ages: [60, 95], kind: "good", max: 1, rate: 0.05, when: (L) => L.kids > 0, text: "孫にゲームで完敗した。くやしいけど楽しい", effect: { happy: 5 } },
-    { id: "diary", ages: [50, 95], kind: "good", max: 1, rate: 0.03, text: "若いころの日記が見つかり、ひとりで赤面した", effect: { happy: 3 } },
-    { id: "hobby", ages: [55, 120], kind: "good", max: 1, rate: 0.04, text: "畑づくりという楽しい趣味を見つけた", effect: { happy: 6, health: 3 } },
+    { id: "diary", ages: [50, 95], kind: "info", max: 1, rate: 0.02, text: "若いころの日記が見つかり、ひとりで赤面した", effect: { happy: 2 } },
+    { id: "hobby", ages: [55, 120], kind: "good", max: 1, rate: 0.03, text: "畑づくりという楽しい趣味を見つけた", effect: { happy: 6, health: 3 } },
+    { id: "walkClub", ages: [60, 95], kind: "good", max: 1, rate: 0.03, text: "毎朝の散歩仲間が10匹になった", effect: { health: 3, happy: 4 } },
+    { id: "smartphone", ages: [65, 100], kind: "info", max: 1, rate: 0.03, text: "新しいスマホの使い方がわからず、同じことを3回聞いた", effect: {} },
+    { id: "glasses", ages: [70, 110], kind: "info", max: 1, rate: 0.03, text: "メガネを頭にのせたまま、メガネをさがした", effect: {} },
+    { id: "seniorDance", ages: [62, 95], kind: "good", max: 1, rate: 0.02, text: "シニアダンス大会で優勝した", effect: { happy: 7, health: 2 } },
+    { id: "teaParty", ages: [65, 105], kind: "good", max: 1, rate: 0.03, text: "近所の仲間と、毎週お茶会を開くようになった", effect: { happy: 5 } },
+    { id: "oldLetter", ages: [60, 100], kind: "good", max: 1, rate: 0.02, text: "昔お世話になったモンスターから、手紙がとどいた", effect: { happy: 6 } },
   ],
 
   // ---------- 称号（一生の終わりに、上から順に当てはまるものが1つ選ばれる） ----------
